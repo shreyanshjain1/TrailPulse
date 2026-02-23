@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Difficulty {
+  EASY
+  MODERATE
+  HARD
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum AuditAction {
+  SIGN_IN
+  SIGN_OUT
+  SAVE_TRAIL
+  UNSAVE_TRAIL
+  PLAN_CREATE
+  PLAN_UPDATE
+  PLAN_DELETE
+  CALENDAR_CREATE
+  CALENDAR_DELETE
+  JOB_RUN
+  AUTHZ_DENIED
+  RATE_LIMITED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String?
+  email         String?  @unique
+  emailVerified DateTime?
+  image         String?
+  role          UserRole @default(USER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  savedTrails   SavedTrail[]
+  plans         HikePlan[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Trail {
+  id               String     @id @default(cuid())
+  name             String
+  region           String
+  difficulty       Difficulty
+  distanceKm       Float
+  elevationGainM   Int
+  lat              Float
+  lng              Float
+  shortDescription String
+  createdAt        DateTime   @default(now())
+
+  savedBy          SavedTrail[]
+  plans            HikePlan[]
+  weatherSnapshots WeatherSnapshot[]
+
+  @@index([region])
+  @@index([difficulty])
+  @@index([distanceKm])
+  @@index([elevationGainM])
+}
+
+model SavedTrail {
+  id        String   @id @default(cuid())
+  userId    String
+  trailId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trail Trail @relation(fields: [trailId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, trailId])
+  @@index([userId])
+  @@index([trailId])
+}
+
+model HikePlan {
+  id          String   @id @default(cuid())
+  userId      String
+  trailId     String
+  startAt     DateTime
+  durationMin Int
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trail        Trail         @relation(fields: [trailId], references: [id], onDelete: Cascade)
+  checklist    ChecklistItem[]
+  calendarLink CalendarEventLink?
+
+  @@index([userId])
+  @@index([trailId])
+  @@index([startAt])
+}
+
+model ChecklistItem {
+  id        String   @id @default(cuid())
+  planId    String
+  text      String
+  isDone    Boolean  @default(false)
+  sortOrder Int      @default(0)
+
+  plan HikePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+}
+
+model CalendarEventLink {
+  id        String   @id @default(cuid())
+  planId    String   @unique
+  eventId   String
+  calendarId String  @default("primary")
+  createdAt DateTime @default(now())
+
+  plan HikePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+}
+
+model WeatherSnapshot {
+  id        String   @id @default(cuid())
+  trailId   String
+  payload   Json
+  fetchedAt DateTime @default(now())
+
+  trail Trail @relation(fields: [trailId], references: [id], onDelete: Cascade)
+
+  @@index([trailId, fetchedAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  userId    String?
+  action    AuditAction
+  target    String?
+  meta      Json?
+  ip        String?
+  ua        String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+model JobRun {
+  id        String   @id @default(cuid())
+  queue     String
+  jobId     String
+  name      String
+  status    String
+  attempts  Int
+  error     String?  @db.Text
+  startedAt DateTime
+  finishedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([queue, createdAt])
+}

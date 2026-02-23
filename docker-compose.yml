@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: trailpulse-postgres
+    environment:
+      POSTGRES_USER: trailpulse
+      POSTGRES_PASSWORD: trailpulse
+      POSTGRES_DB: trailpulse
+    ports:
+      - "5432:5432"
+    volumes:
+      - trailpulse_pg:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: trailpulse-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - trailpulse_redis:/data
+
+volumes:
+  trailpulse_pg:
+  trailpulse_redis:
