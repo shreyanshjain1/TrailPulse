@@ -1,60 +1,74 @@
+"use client";
+
 import Link from "next/link";
-import { auth } from "@/src/auth";
-import { prisma } from "@/src/server/prisma";
+import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/src/components/theme-toggle";
 import { UserMenu } from "@/src/components/user-menu";
-import { cn } from "@/src/lib/utils";
 
-export async function AppShell({ children }: { children: React.ReactNode }) {
-  const session = await auth();
-  const userId = session?.user?.id ?? null;
-  const unread = userId
-    ? await prisma.notification.count({ where: { userId, isRead: false } })
-    : 0;
+const nav = [
+  { href: "/trails", label: "Trails" },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/notifications", label: "Notifications" },
+  { href: "/activity", label: "Activity" },
+];
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-950 dark:bg-black dark:text-zinc-50">
-      <header className="sticky top-0 z-40 border-b border-zinc-200/70 bg-white/70 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/70">
-        <div className="container flex h-16 items-center justify-between">
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-6">
             <Link href="/dashboard" className="font-semibold tracking-tight">
               TrailPulse
             </Link>
-            <nav className="hidden items-center gap-4 text-sm md:flex">
-              <Link className="text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white" href="/trails">
-                Trails
-              </Link>
-              <Link className="text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white" href="/dashboard">
-                Dashboard
-              </Link>
-              <Link
-                className={cn("text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white", unread ? "relative" : "")}
-                href="/notifications"
-              >
-                Notifications
-                {unread ? (
-                  <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs text-white">
-                    {unread}
-                  </span>
-                ) : null}
-              </Link>
-              <Link className="text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white" href="/activity">
-                Activity
-              </Link>
-              {session?.user?.role === "ADMIN" ? (
-                <Link className="text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white" href="/jobs-admin">
-                  Jobs Admin
-                </Link>
-              ) : null}
+
+            <nav className="hidden md:flex items-center gap-4 text-sm">
+              {nav.map((item) => {
+                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={active ? "text-foreground" : "text-muted-foreground hover:text-foreground"}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
+
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <UserMenu session={session} />
+            <UserMenu />
+          </div>
+        </div>
+
+        {/* Mobile nav */}
+        <div className="border-t md:hidden">
+          <div className="mx-auto flex max-w-6xl items-center gap-3 overflow-x-auto px-4 py-2 text-sm">
+            {nav.map((item) => {
+              const active = pathname === item.href || pathname.startsWith(item.href + "/");
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={
+                    "whitespace-nowrap rounded-full px-3 py-1 border " +
+                    (active ? "bg-foreground text-background" : "text-muted-foreground")
+                  }
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </header>
-      <main className="container py-8">{children}</main>
+
+      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
     </div>
   );
 }

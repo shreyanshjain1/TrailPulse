@@ -39,9 +39,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account, profile, request }) {
       // Set role based on allowlist
       if (user?.email && adminEmails.has(user.email.toLowerCase())) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { role: "ADMIN" }
+        // updateMany never throws if record doesn't exist yet (first sign-in race)
+        await prisma.user.updateMany({
+          where: { email: user.email },
+          data: { role: "ADMIN" },
         });
       }
 
@@ -49,12 +50,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const ua = request?.headers.get("user-agent") ?? null;
 
       await audit({
-        userId: user?.id ?? null,
+        userId: user.id,
+        userEmail: user.email,
         action: "SIGN_IN",
-        target: account?.provider ?? "google",
-        meta: { email: user?.email ?? null, profile: profile ? { sub: (profile as any).sub } : null },
         ip,
-        ua
+        ua,
       });
 
       return true;

@@ -1,220 +1,137 @@
-import { Worker, QueueEvents, JobsOptions } from "bullmq";
-import { weatherSyncQueue, digestQueue } from "@/src/server/queues";
+// src/worker/index.ts
+import "dotenv/config";
+import { Worker } from "bullmq";
 import { prisma } from "@/src/server/prisma";
-import { env } from "@/src/env";
-import { audit } from "@/src/server/audit";
 import { redis } from "@/src/server/redis";
+import { env } from "@/src/env";
+import { weatherSyncQueue, digestQueue } from "@/src/server/queues";
 
-type WeatherPayload = {
-  provider: string;
-  summary: string;
-  temperature_c: number;
-  wind_kph: number;
-  precipitation_chance: number;
-  fetched_at_iso: string;
-};
+// ---- Weather provider (simple Open-Meteo) ----
+async function fetchWeather(lat: number, lng: number) {
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}` +
+    `&longitude=${encodeURIComponent(lng)}` +
+    `&current=temperature_2m,wind_speed_10m` +
+    `&hourly=precipitation_probability` +
+    `&forecast_days=1`;
 
-async function fetchOpenMeteo(lat: number, lng: number): Promise<WeatherPayload> {
-  const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.searchParams.set("latitude", String(lat));
-  url.searchParams.set("longitude", String(lng));
-  url.searchParams.set("current", "temperature_2m,wind_speed_10m,precipitation");
-  url.searchParams.set("timezone", "Asia/Manila");
+  const res = await fetch(url, { headers: { "User-Agent": "TrailPulseWorker/1.0" } });
+  if (!res.ok) throw new Error(`Weather provider error: ${res.status}`);
+  const data: any = await res.json();
 
-  const res = await fetch(url.toString(), { headers: { "User-Agent": "TrailPulse/1.0" } });
-  if (!res.ok) throw new Error(`OpenMeteo HTTP ${res.status}`);
-  const json: any = await res.json();
-  const t = Number(json?.current?.temperature_2m ?? 0);
-  const w = Number(json?.current?.wind_speed_10m ?? 0);
-  const p = Number(json?.current?.precipitation ?? 0);
-  const precipChance = Math.max(0, Math.min(100, Math.round(p * 20)));
-  const summary = precipChance > 60 ? "High chance of rain" : precipChance > 30 ? "Possible showers" : "Mostly clear";
+  const temp = data?.current?.temperature_2m;
+  const wind = data?.current?.wind_speed_10m;
+  const precip = Array.isArray(data?.hourly?.precipitation_probability)
+    ? data.hourly.precipitation_probability[0]
+    : undefined;
 
   return {
-    provider: "open-meteo",
-    summary,
-    temperature_c: t,
-    wind_kph: w,
-    precipitation_chance: precipChance,
-    fetched_at_iso: new Date().toISOString()
+    summary: "Forecast snapshot",
+    temperature_c: typeof temp === "number" ? temp : undefined,
+    wind_kph: typeof wind === "number" ? wind : undefined,
+    precipitation_chance: typeof precip === "number" ? precip : undefined,
+    raw: data,
   };
 }
 
-function mockWeather(lat: number, lng: number): WeatherPayload {
-  const seed = Math.abs(Math.sin(lat + lng + Date.now() / 1000 / 3600));
-  const temperature = 18 + Math.round(seed * 14);
-  const wind = 4 + Math.round(seed * 20);
-  const precipChance = Math.round(seed * 80);
-  const summary = precipChance > 60 ? "Rain likely" : precipChance > 35 ? "Scattered showers" : "Fair weather";
-  return {
-    provider: "mock",
-    summary,
-    temperature_c: temperature,
-    wind_kph: wind,
-    precipitation_chance: precipChance,
-    fetched_at_iso: new Date().toISOString()
-  };
+// ---- Helpers for JobRun logging ----
+async function jobRunStart(queue: string, jobId: string, name: string, attempts: number) {
+  return prisma.jobRun.create({
+    data: {
+      queue,
+      jobId,
+      name,
+      status: "active",
+      attempts,
+    },
+  });
+}
+
+async function jobRunFinish(id: string, status: "completed" | "failed", error?: string) {
+  await prisma.jobRun.update({
+    where: { id },
+    data: {
+      status,
+      error: error ?? null,
+    },
+  });
 }
 
 async function runWeatherSync(jobId: string) {
-  const startedAt = new Date();
-  const jr = await prisma.jobRun.create({
-    data: {
-      queue: "weatherSync",
-      jobId,
-      name: "WeatherSync",
-      status: "active",
-      attempts: 0,
-      startedAt
-    }
-  });
+  const jr = await jobRunStart("weatherSync", jobId, "WeatherSync", 0);
 
   try {
-    const trailIds = await prisma.savedTrail.findMany({ select: { trailId: true } });
-    const plannedTrailIds = await prisma.hikePlan.findMany({
-      where: { startAt: { gte: new Date(Date.now() - 7 * 24 * 3600_000) } },
-      select: { trailId: true }
+    // Trails that are saved or planned recently
+    const trails = await prisma.trail.findMany({
+      take: 50,
+      select: { id: true, lat: true, lng: true },
+      where: {
+        OR: [
+          { savedBy: { some: {} } },
+          { plans: { some: {} } },
+        ],
+      },
     });
 
-    const uniq = Array.from(new Set([...trailIds, ...plannedTrailIds].map((x) => x.trailId)));
-    if (uniq.length === 0) {
-      await prisma.jobRun.update({ where: { id: jr.id }, data: { status: "completed", finishedAt: new Date() } });
-      return;
-    }
-
-    const trails = await prisma.trail.findMany({ where: { id: { in: uniq } } });
-
     for (const t of trails) {
-      let payload: WeatherPayload;
-      try {
-        payload = await fetchOpenMeteo(t.lat, t.lng);
-      } catch {
-        payload = mockWeather(t.lat, t.lng);
-      }
+      const snap = await fetchWeather(t.lat, t.lng);
 
       await prisma.weatherSnapshot.create({
         data: {
           trailId: t.id,
-          payload: payload as any,
-          fetchedAt: new Date()
-        }
+          payload: snap,
+        },
       });
     }
 
-    await prisma.jobRun.update({ where: { id: jr.id }, data: { status: "completed", finishedAt: new Date() } });
-    await audit({ userId: null, action: "JOB_RUN", target: "weatherSync", meta: { trails: trails.length } });
+    await jobRunFinish(jr.id, "completed");
   } catch (e: any) {
-    await prisma.jobRun.update({
-      where: { id: jr.id },
-      data: { status: "failed", error: String(e?.stack ?? e?.message ?? e), finishedAt: new Date() }
-    });
-    await audit({ userId: null, action: "JOB_RUN", target: "weatherSync_failed", meta: { error: String(e?.message ?? e) } });
+    await jobRunFinish(jr.id, "failed", String(e?.message ?? e));
     throw e;
   }
-}
-
-function diffScore(difficulty: string) {
-  return difficulty === "EASY" ? 1 : difficulty === "MODERATE" ? 2 : 3;
 }
 
 async function runDigest(jobId: string) {
-  const startedAt = new Date();
-  const jr = await prisma.jobRun.create({
-    data: {
-      queue: "digest",
-      jobId,
-      name: "DailyDigest",
-      status: "active",
-      attempts: 0,
-      startedAt
-    }
-  });
+  const jr = await jobRunStart("digest", jobId, "Digest", 0);
 
   try {
+    // For each user, pick some trails and write notifications
     const users = await prisma.user.findMany({ select: { id: true } });
-    const allTrails = await prisma.trail.findMany();
 
     for (const u of users) {
-      const saved = await prisma.savedTrail.findMany({ where: { userId: u.id }, include: { trail: true } });
-      const planned = await prisma.hikePlan.findMany({ where: { userId: u.id }, include: { trail: true } });
+      const picks = await prisma.trail.findMany({
+        take: 3,
+        orderBy: { createdAt: "desc" },
+        select: { id: true, name: true, difficulty: true, distanceKm: true },
+      });
 
-      const trails = [...saved.map((s) => s.trail), ...planned.map((p) => p.trail)];
-      if (trails.length === 0) continue;
-
-      const avgDistance = trails.reduce((a, t) => a + t.distanceKm, 0) / trails.length;
-      const avgDiff = trails.reduce((a, t) => a + diffScore(t.difficulty), 0) / trails.length;
-
-      const savedSet = new Set(saved.map((s) => s.trailId));
-      const candidates = allTrails
-        .filter((t) => !savedSet.has(t.id))
-        .map((t) => {
-          const dScore = Math.abs(t.distanceKm - avgDistance) / Math.max(1, avgDistance);
-          const diffDelta = Math.abs(diffScore(t.difficulty) - avgDiff) / 3;
-          const score = dScore * 0.6 + diffDelta * 0.4;
-          return { t, score };
-        })
-        .sort((a, b) => a.score - b.score)
-        .slice(0, 3)
-        .map((x) => x.t);
-
-      if (candidates.length === 0) continue;
-
-      const bodyLines = candidates.map((t) => `• ${t.name} — ${t.region} — ${t.difficulty} — ${t.distanceKm} km`);
       await prisma.notification.create({
         data: {
           userId: u.id,
-          title: "Weekly trail picks",
-          body: ["Based on your saved and planned hikes, here are trails you might like:", "", ...bodyLines, "", "Open TrailPulse → Trails to explore more."].join("\n")
-        }
+          title: "Weekly picks",
+          body:
+            "Here are a few fresh trails to consider this week:\n" +
+            picks.map((p) => `• ${p.name} (${p.difficulty}, ${p.distanceKm} km)`).join("\n"),
+        },
       });
     }
 
-    await prisma.jobRun.update({ where: { id: jr.id }, data: { status: "completed", finishedAt: new Date() } });
-    await audit({ userId: null, action: "JOB_RUN", target: "digest" });
+    await jobRunFinish(jr.id, "completed");
   } catch (e: any) {
-    await prisma.jobRun.update({
-      where: { id: jr.id },
-      data: { status: "failed", error: String(e?.stack ?? e?.message ?? e), finishedAt: new Date() }
-    });
-    await audit({ userId: null, action: "JOB_RUN", target: "digest_failed", meta: { error: String(e?.message ?? e) } });
+    await jobRunFinish(jr.id, "failed", String(e?.message ?? e));
     throw e;
   }
-}
-
-async function ensureRepeatables() {
-  const hours = env.WEATHER_SYNC_EVERY_HOURS;
-  const everyMs = hours * 3600_000;
-
-  await weatherSyncQueue.add(
-    "weatherSync",
-    {},
-    {
-      jobId: "weatherSync:repeat",
-      repeat: { every: everyMs, tz: "Asia/Manila" }
-    }
-  );
-
-  const hour = env.DIGEST_HOUR_LOCAL;
-  const cron = `0 ${hour} * * *`; // at HH:00 Asia/Manila
-  await digestQueue.add(
-    "digest",
-    {},
-    {
-      jobId: "digest:daily",
-      repeat: { pattern: cron, tz: "Asia/Manila" }
-    }
-  );
 }
 
 async function main() {
   console.log("TrailPulse worker starting…");
-  await ensureRepeatables();
 
+  // BullMQ requires maxRetriesPerRequest: null (handled in src/server/redis.ts)
+  // Create workers
   const weatherWorker = new Worker(
     "weatherSync",
     async (job) => {
       await runWeatherSync(String(job.id));
-      return { ok: true };
     },
     { connection: redis }
   );
@@ -223,35 +140,46 @@ async function main() {
     "digest",
     async (job) => {
       await runDigest(String(job.id));
-      return { ok: true };
     },
     { connection: redis }
   );
 
-  // Queue events for observability
-  const wEvents = new QueueEvents("weatherSync", { connection: redis });
-  const dEvents = new QueueEvents("digest", { connection: redis });
-
-  wEvents.on("failed", ({ jobId, failedReason }) => {
-    console.error("weatherSync failed", jobId, failedReason);
-  });
-  dEvents.on("failed", ({ jobId, failedReason }) => {
-    console.error("digest failed", jobId, failedReason);
+  weatherWorker.on("failed", (job, err) => {
+    console.error("weatherSync failed", job?.id, err?.message);
   });
 
-  process.on("SIGINT", async () => {
-    console.log("Shutting down…");
-    await weatherWorker.close();
-    await digestWorker.close();
-    await wEvents.close();
-    await dEvents.close();
-    await prisma.$disconnect();
-    process.exit(0);
+  digestWorker.on("failed", (job, err) => {
+    console.error("digest failed", job?.id, err?.message);
   });
+
+  // Add repeatable jobs (safe in dev; duplicates avoided by jobId)
+  const everyHours = Number(env.WEATHER_SYNC_EVERY_HOURS ?? 6);
+  const digestHour = Number(env.DIGEST_HOUR_LOCAL ?? 8);
+
+  await weatherSyncQueue.add(
+    "weatherSync",
+    { trigger: "repeat" },
+    {
+      repeat: { every: Math.max(1, everyHours) * 60 * 60 * 1000 },
+      jobId: "weatherSync-repeat",
+    }
+  );
+
+  // Run digest daily at local hour (approx via cron)
+  // Asia/Manila = UTC+8
+  await digestQueue.add(
+    "digest",
+    { trigger: "daily" },
+    {
+      repeat: { pattern: `0 ${Math.min(23, Math.max(0, digestHour))} * * *` },
+      jobId: "digest-daily",
+    }
+  );
+
+  console.log("Worker ready: weatherSync + digest scheduled.");
 }
 
-main().catch(async (e) => {
+main().catch((e) => {
   console.error(e);
-  await prisma.$disconnect();
   process.exit(1);
 });
