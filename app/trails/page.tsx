@@ -1,76 +1,105 @@
-// app/trails/page.tsx
-import { listTrails } from "@/src/server/trails";
-import { AppShell } from "@/src/components/app-shell";
-import { TrailsFilters } from "@/src/components/trails-filters";
-import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
 import Link from "next/link";
+import { requireUser } from "@/src/server/authz";
+import { listTrails } from "@/src/server/trails";
+import { TrailsFilters } from "@/src/components/trails-filters";
 
-function first(v: string | string[] | undefined) {
-  return Array.isArray(v) ? v[0] : v;
-}
+type SearchParams = {
+  q?: string;
+  difficulty?: string;
+  minDistanceKm?: string;
+  maxDistanceKm?: string;
+  minElevationGainM?: string;
+  maxElevationGainM?: string;
+};
 
 export default async function TrailsPage({
   searchParams,
 }: {
-  searchParams:
-    | Promise<Record<string, string | string[] | undefined>>
-    | Record<string, string | string[] | undefined>;
+  searchParams?: Promise<SearchParams>;
 }) {
-  const sp = await Promise.resolve(searchParams);
-
-  const initial = {
-    q: first(sp.q) ?? "",
-    difficulty: first(sp.difficulty) ?? "",
-    minDistance: sp.minDistance ? Number(first(sp.minDistance)) : undefined,
-    maxDistance: sp.maxDistance ? Number(first(sp.maxDistance)) : undefined,
-    minElevation: sp.minElevation ? Number(first(sp.minElevation)) : undefined,
-    maxElevation: sp.maxElevation ? Number(first(sp.maxElevation)) : undefined,
-  };
-
-  const trails = await listTrails(sp);
+  const user = await requireUser();
+  const params = searchParams ? await searchParams : {};
+  const { trails, homeLocation } = await listTrails({
+    raw: params ?? {},
+    userId: user?.id ?? null,
+  });
 
   return (
-    <AppShell>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Trails</h1>
-          <p className="text-sm text-muted-foreground">Search and filter the seeded catalog.</p>
-        </div>
+    <div className="space-y-6">
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-3xl border bg-gradient-to-r from-emerald-100/70 via-cyan-50 to-amber-50 p-6 dark:from-emerald-950/30 dark:via-cyan-950/10 dark:to-amber-950/10">
+        <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_20%,#10b981_0,transparent_40%),radial-gradient(circle_at_80%_10%,#06b6d4_0,transparent_35%),radial-gradient(circle_at_70%_80%,#f59e0b_0,transparent_30%)]" />
+        <div className="relative">
+          <h1 className="text-2xl font-semibold tracking-tight">Explore trails</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Filter routes, compare difficulty, and plan your next hike.
+          </p>
 
-        <TrailsFilters initial={initial} />
-
-        {trails.length === 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>No trails found</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Try changing filters or removing the search term.
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {trails.map((t) => (
-              <Link key={t.id} href={`/trails/${t.id}`} className="block">
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="text-base">{t.name}</CardTitle>
-                    <div className="text-xs text-muted-foreground">{t.region}</div>
-                  </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <span className="rounded-full border px-2 py-0.5">{t.difficulty}</span>
-                      <span className="rounded-full border px-2 py-0.5">{t.distanceKm} km</span>
-                      <span className="rounded-full border px-2 py-0.5">{t.elevationGainM} m gain</span>
-                    </div>
-                    <p className="line-clamp-3 text-muted-foreground">{t.shortDescription}</p>
-                  </CardContent>
-                </Card>
+          {homeLocation ? (
+            <div className="mt-3 inline-flex items-center rounded-full border bg-background/80 px-3 py-1 text-xs">
+              Nearby sorting from: <span className="ml-1 font-medium">{homeLocation.label}</span>
+            </div>
+          ) : (
+            <div className="mt-3 text-xs text-muted-foreground">
+              Want nearby trails?{" "}
+              <Link href="/profile" className="underline">
+                Add your start location in Profile
               </Link>
-            ))}
-          </div>
-        )}
-      </div>
-    </AppShell>
+              .
+            </div>
+          )}
+        </div>
+      </section>
+
+      <TrailsFilters initial={params ?? {}} />
+
+      {/* Grid */}
+      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {trails.map((trail) => (
+          <Link
+            key={trail.id}
+            href={`/trails/${trail.id}`}
+            className="group overflow-hidden rounded-2xl border bg-card transition hover:-translate-y-0.5 hover:shadow-lg"
+          >
+            <div className="relative h-44 w-full overflow-hidden">
+              <img
+                src={trail.imageUrl || `https://source.unsplash.com/1200x800/?mountain,hiking,trail&sig=${trail.id}`}
+                alt={trail.name}
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+              <div className="absolute bottom-3 left-3 right-3">
+                <h3 className="line-clamp-1 text-lg font-semibold text-white">{trail.name}</h3>
+                <p className="line-clamp-1 text-xs text-white/85">{trail.region}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 p-4">
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full border px-2 py-0.5">{trail.difficulty}</span>
+                <span className="rounded-full border px-2 py-0.5">{trail.distanceKm} km</span>
+                <span className="rounded-full border px-2 py-0.5">{trail.elevationGainM} m gain</span>
+                {trail.distanceFromStartKm != null && (
+                  <span className="rounded-full border bg-emerald-50 px-2 py-0.5 dark:bg-emerald-950/30">
+                    {trail.distanceFromStartKm.toFixed(1)} km away
+                  </span>
+                )}
+              </div>
+
+              <p className="line-clamp-2 text-sm text-muted-foreground">{trail.summary}</p>
+
+              <div className="flex items-center justify-between text-xs">
+                <div className="text-muted-foreground">
+                  {trail.avgRating ? `⭐ ${trail.avgRating} (${trail.reviewCount})` : "No ratings yet"}
+                </div>
+                <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                  View trail →
+                </span>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </section>
+    </div>
   );
 }

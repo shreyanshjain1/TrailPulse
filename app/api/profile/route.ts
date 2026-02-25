@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/server/prisma";
 import { requireUser } from "@/src/server/authz";
-import { reviewCreateSchema } from "@/src/server/validators";
+import { profileLocationSchema } from "@/src/server/validators";
 
 export async function POST(req: Request) {
   const user = await requireUser();
@@ -9,24 +9,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json();
-  const parsed = reviewCreateSchema.safeParse(body);
+  const json = await req.json();
+  const parsed = profileLocationSchema.safeParse(json);
 
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Invalid review payload", issues: parsed.error.flatten() },
+      { error: "Invalid payload", issues: parsed.error.flatten() },
       { status: 400 }
     );
   }
 
-  const { trailId, rating, comment } = parsed.data;
+  const data = parsed.data;
 
-  await prisma.review.create({
+  await prisma.user.update({
+    where: { id: user.id },
     data: {
-      userId: user.id,
-      trailId,
-      rating,
-      comment: comment?.trim() ? comment.trim() : null,
+      homeLabel: data.homeLabel,
+      homeLat: data.homeLat,
+      homeLng: data.homeLng,
     },
   });
 

@@ -42,6 +42,12 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // Optional home/start location (for nearby trails)
+  homeLabel     String?
+  homeLat       Float?
+  homeLng       Float?
+
+  // Relations
   accounts      Account[]
   sessions      Session[]
   savedTrails   SavedTrail[]
@@ -78,7 +84,8 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -101,7 +108,11 @@ model Trail {
   lat              Float
   lng              Float
   shortDescription String
-  imageUrl         String      @db.Text
+  imageUrl         String?
+
+  // NEW: route line + labeled sections
+  routeGeoJson     Json?
+  routeSections    Json?
 
   savedBy          SavedTrail[]
   plans            HikePlan[]
@@ -129,18 +140,18 @@ model SavedTrail {
 }
 
 model HikePlan {
-  id          String   @id @default(cuid())
-  userId      String
-  trailId     String
-  startAt     DateTime
-  durationMin Int
-  notes       String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String
+  trailId      String
+  startAt      DateTime
+  durationMin  Int
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trail       Trail    @relation(fields: [trailId], references: [id], onDelete: Cascade)
-  checklist   ChecklistItem[]
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trail        Trail    @relation(fields: [trailId], references: [id], onDelete: Cascade)
+  checklist    ChecklistItem[]
   calendarLink CalendarEventLink?
 
   @@index([userId])
@@ -201,8 +212,9 @@ model AuditLog {
   meta      Json?
   ip        String?
   ua        String?
-  createdAt DateTime @default(now())
+  createdAt DateTime    @default(now())
 
+  // If you want to allow system logs with no user, change userId to String? and relation optional.
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
@@ -210,29 +222,37 @@ model AuditLog {
 }
 
 model JobRun {
-  id        String   @id @default(cuid())
-  queue     String
-  jobId     String
-  name      String
-  status    String
-  attempts  Int
-  error     String?  @db.Text
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  queue      String
+  jobId      String
+  name       String
+  status     String
+  attempts   Int
+  error      String?  @db.Text
+
+  // Added because your worker writes startedAt and likely completedAt
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  createdAt  DateTime @default(now())
 
   @@index([queue, createdAt])
+  @@index([status, createdAt])
 }
 
 model Review {
   id        String   @id @default(cuid())
-  userId    String
   trailId   String
+  userId    String
   rating    Int
-  comment   String?  @db.Text
+  comment   String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   trail Trail @relation(fields: [trailId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([trailId, createdAt])
-  @@index([userId, createdAt])
+  @@index([trailId])
+  @@index([userId])
+  @@unique([trailId, userId]) // optional: one review per user per trail
 }
