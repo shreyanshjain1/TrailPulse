@@ -1,100 +1,104 @@
 import { prisma } from "@/src/server/prisma";
-import { calendarCreateSchema } from "@/src/server/validators";
 import { jsonError, jsonOk, getIpUa } from "@/src/server/http";
-import { requireUserOrThrow, ensureOwnsPlan } from "@/src/server/authz";
+import { requireUserOrThrow } from "@/src/server/authz";
 import { rateLimit } from "@/src/server/rateLimit";
-import { createCalendarEvent, deleteCalendarEvent } from "@/src/server/googleCalendar";
 import { audit } from "@/src/server/audit";
+import { google } from "googleapis";
+import { z } from "zod";
 
-function buildDescription(notes: string | null, checklist: { text: string; isDone: boolean }[]) {
-  const lines: string[] = [];
-  if (notes?.trim()) {
-    lines.push("Notes:");
-    lines.push(notes.trim());
-    lines.push("");
-  }
-  if (checklist.length) {
-    lines.push("Checklist:");
-    for (const item of checklist) {
-      lines.push(`- [${item.isDone ? "x" : " "}] ${item.text}`);
-    }
-  }
-  return lines.join("\n");
-}
+const schema = z.object({
+  planId: z.string().min(1),
+});
 
 export async function POST(req: Request) {
   const { ip, ua } = getIpUa(req);
+
   try {
     const user = await requireUserOrThrow({ ip, ua });
-    const rl = await rateLimit({ key: `calendarCreate:${user.id}`, max: 6, windowSec: 60, userId: user.id, ip, ua });
+
+    const rl = await rateLimit({
+      key: `calCreate:${user.id}`,
+      max: 10,
+      windowSec: 60,
+      userId: user.id,
+      ip,
+      ua,
+    });
     if (!rl.ok) return jsonError("Too many requests", 429, { retryAfterSec: rl.retryAfterSec });
 
     const body = await req.json();
-    const parsed = calendarCreateSchema.safeParse(body);
+    const parsed = schema.safeParse(body);
     if (!parsed.success) return jsonError("Invalid input", 400, parsed.error.flatten());
-
-    const owns = await ensureOwnsPlan(user.id, parsed.data.planId);
-    if (!owns) {
-      await audit({ userId: user.id, action: "AUTHZ_DENIED", target: parsed.data.planId, meta: { resource: "HikePlan" }, ip, ua });
-      return jsonError("Forbidden", 403);
-    }
 
     const plan = await prisma.hikePlan.findUnique({
       where: { id: parsed.data.planId },
-      include: { trail: true, checklist: true, calendarLink: true }
+      include: {
+        trail: true,
+        checklist: { orderBy: { sortOrder: "asc" } },
+        calendarLink: true,
+        user: { include: { accounts: true } },
+      },
     });
+
     if (!plan) return jsonError("Plan not found", 404);
+    if (plan.userId !== user.id) return jsonError("Forbidden", 403);
+    if (plan.calendarLink) return jsonOk({ ok: true, already: true });
 
-    const endAt = new Date(plan.startAt.getTime() + plan.durationMin * 60_000);
-    const title = `Hike: ${plan.trail.name}`;
-    const description = buildDescription(plan.notes ?? null, plan.checklist.map((c) => ({ text: c.text, isDone: c.isDone })));
+    const account = plan.user.accounts.find((a) => a.provider === "google");
+    if (!account?.access_token) {
+      return jsonError("Google access token missing. Sign out and sign in again.", 400);
+    }
 
-    const eventId = await createCalendarEvent({
-      userId: user.id,
-      planId: plan.id,
-      title,
-      description,
-      startAt: plan.startAt,
-      endAt
+    const oauth2 = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_CALENDAR_REDIRECT_URI
+    );
+
+    oauth2.setCredentials({
+      access_token: account.access_token,
+      refresh_token: account.refresh_token ?? undefined,
     });
 
-    await audit({ userId: user.id, action: "CALENDAR_CREATE", target: plan.id, meta: { eventId }, ip, ua });
+    const cal = google.calendar({ version: "v3", auth: oauth2 });
 
-    return jsonOk({ eventId });
+    const start = new Date(plan.startAt);
+    const end = new Date(start.getTime() + plan.durationMin * 60 * 1000);
+
+    const checklistText =
+      plan.checklist.length > 0
+        ? "\n\nChecklist:\n" + plan.checklist.map((c) => `- ${c.text}`).join("\n")
+        : "";
+
+    const event = await cal.events.insert({
+      calendarId: "primary",
+      requestBody: {
+        summary: `Hike: ${plan.trail.name}`,
+        description: (plan.notes ?? "") + checklistText,
+        start: { dateTime: start.toISOString() },
+        end: { dateTime: end.toISOString() },
+      },
+    });
+
+    const eventId = event.data.id;
+    if (!eventId) return jsonError("Calendar event creation failed", 500);
+
+    await prisma.calendarEventLink.create({
+      data: { planId: plan.id, eventId },
+    });
+
+    await audit({
+      userId: user.id,
+      action: "CALENDAR_CREATE",
+      target: plan.id,
+      meta: { eventId },
+      ip,
+      ua,
+    });
+
+    return jsonOk({ ok: true, eventId });
   } catch (e: any) {
     const msg = e?.message ?? "Server error";
-    if (msg === "NO_REFRESH_TOKEN") {
-      return jsonError("Google access needs re-consent. Sign out and sign in again.", 400);
-    }
-    const status = msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
-    return jsonError("Request failed", status);
-  }
-}
-
-export async function DELETE(req: Request) {
-  const { ip, ua } = getIpUa(req);
-  try {
-    const user = await requireUserOrThrow({ ip, ua });
-    const rl = await rateLimit({ key: `calendarDelete:${user.id}`, max: 6, windowSec: 60, userId: user.id, ip, ua });
-    if (!rl.ok) return jsonError("Too many requests", 429, { retryAfterSec: rl.retryAfterSec });
-
-    const body = await req.json();
-    const parsed = calendarCreateSchema.safeParse(body);
-    if (!parsed.success) return jsonError("Invalid input", 400, parsed.error.flatten());
-
-    const owns = await ensureOwnsPlan(user.id, parsed.data.planId);
-    if (!owns) {
-      await audit({ userId: user.id, action: "AUTHZ_DENIED", target: parsed.data.planId, meta: { resource: "HikePlan" }, ip, ua });
-      return jsonError("Forbidden", 403);
-    }
-
-    await deleteCalendarEvent({ userId: user.id, planId: parsed.data.planId });
-    await audit({ userId: user.id, action: "CALENDAR_DELETE", target: parsed.data.planId, ip, ua });
-
-    return jsonOk({ deleted: true });
-  } catch (e: any) {
-    const msg = e?.message ?? "Server error";
-    const status = msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
-    return jsonError("Request failed", status);
+    return jsonError(msg, 500);
   }
 }
