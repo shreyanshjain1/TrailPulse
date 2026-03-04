@@ -1,3 +1,10 @@
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
+![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-336791)
+![Redis](https://img.shields.io/badge/Redis-Queue%2FCache-D82C20)
+
 # TrailPulse 🥾🌿
 **Hike • Plan • Sync** — A modern hiking trail discovery + planning app with Google OAuth, Google Calendar sync, and background jobs.
 
