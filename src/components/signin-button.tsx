@@ -6,7 +6,10 @@ import { Chrome } from "lucide-react";
 
 export function SignInButton() {
   return (
-    <Button className="w-full gap-2" onClick={() => signIn("google", { callbackUrl: "/dashboard" })}>
+    <Button
+      className="w-full gap-2"
+      onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+    >
       <Chrome className="h-4 w-4" />
       Continue with Google
     </Button>

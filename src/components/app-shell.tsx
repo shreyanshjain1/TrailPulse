@@ -43,7 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     "rounded-xl px-3 py-2 text-sm font-medium transition",
                     active
                       ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
-                      : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                      : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900",
                   )}
                 >
                   {item.label}
@@ -70,7 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     "flex items-center justify-center rounded-2xl px-2 py-2 text-xs transition",
                     active
                       ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
-                      : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                      : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900",
                   )}
                 >
                   {item.label}

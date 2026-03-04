@@ -9,7 +9,14 @@ export async function POST(req: Request) {
   const { ip, ua } = getIpUa(req);
   try {
     const user = await requireUserOrThrow({ ip, ua });
-    const rl = await rateLimit({ key: `notifRead:${user.id}`, max: 30, windowSec: 60, userId: user.id, ip, ua });
+    const rl = await rateLimit({
+      key: `notifRead:${user.id}`,
+      max: 30,
+      windowSec: 60,
+      userId: user.id,
+      ip,
+      ua,
+    });
     if (!rl.ok) return jsonError("Too many requests", 429, { retryAfterSec: rl.retryAfterSec });
 
     const body = await req.json();
@@ -18,11 +25,21 @@ export async function POST(req: Request) {
 
     const ok = await ensureOwnsNotification(user.id, parsed.data.notificationId);
     if (!ok) {
-      await audit({ userId: user.id, action: "AUTHZ_DENIED", target: parsed.data.notificationId, meta: { resource: "Notification" }, ip, ua });
+      await audit({
+        userId: user.id,
+        action: "AUTHZ_DENIED",
+        target: parsed.data.notificationId,
+        meta: { resource: "Notification" },
+        ip,
+        ua,
+      });
       return jsonError("Forbidden", 403);
     }
 
-    await prisma.notification.update({ where: { id: parsed.data.notificationId }, data: { isRead: true } });
+    await prisma.notification.update({
+      where: { id: parsed.data.notificationId },
+      data: { isRead: true },
+    });
     return jsonOk({ read: true });
   } catch (e: any) {
     const msg = e?.message ?? "Server error";

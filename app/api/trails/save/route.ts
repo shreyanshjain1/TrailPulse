@@ -11,7 +11,14 @@ export async function POST(req: Request) {
   const { ip, ua } = getIpUa(req);
   try {
     const user = await requireUserOrThrow({ ip, ua });
-    const rl = await rateLimit({ key: `saveTrail:${user.id}`, max: 30, windowSec: 60, userId: user.id, ip, ua });
+    const rl = await rateLimit({
+      key: `saveTrail:${user.id}`,
+      max: 30,
+      windowSec: 60,
+      userId: user.id,
+      ip,
+      ua,
+    });
     if (!rl.ok) return jsonError("Too many requests", 429, { retryAfterSec: rl.retryAfterSec });
 
     const body = await req.json();
@@ -19,19 +26,24 @@ export async function POST(req: Request) {
     if (!parsed.success) return jsonError("Invalid input", 400, parsed.error.flatten());
 
     // Ensure trail exists
-    const trail = await prisma.trail.findUnique({ where: { id: parsed.data.trailId }, select: { id: true } });
+    const trail = await prisma.trail.findUnique({
+      where: { id: parsed.data.trailId },
+      select: { id: true },
+    });
     if (!trail) return jsonError("Trail not found", 404);
 
     await prisma.savedTrail.upsert({
       where: { userId_trailId: { userId: user.id, trailId: parsed.data.trailId } },
       update: {},
-      create: { userId: user.id, trailId: parsed.data.trailId }
+      create: { userId: user.id, trailId: parsed.data.trailId },
     });
 
     await audit({ userId: user.id, action: "SAVE_TRAIL", target: parsed.data.trailId, ip, ua });
 
     // Fire-and-forget: kick a weather sync soon
-    weatherSyncQueue.add("weatherSync", { trigger: "saveTrail", trailId: parsed.data.trailId }).catch(() => {});
+    weatherSyncQueue
+      .add("weatherSync", { trigger: "saveTrail", trailId: parsed.data.trailId })
+      .catch(() => {});
 
     return jsonOk({ saved: true });
   } catch (e: any) {
@@ -45,14 +57,23 @@ export async function DELETE(req: Request) {
   const { ip, ua } = getIpUa(req);
   try {
     const user = await requireUserOrThrow({ ip, ua });
-    const rl = await rateLimit({ key: `unsaveTrail:${user.id}`, max: 30, windowSec: 60, userId: user.id, ip, ua });
+    const rl = await rateLimit({
+      key: `unsaveTrail:${user.id}`,
+      max: 30,
+      windowSec: 60,
+      userId: user.id,
+      ip,
+      ua,
+    });
     if (!rl.ok) return jsonError("Too many requests", 429, { retryAfterSec: rl.retryAfterSec });
 
     const body = await req.json();
     const parsed = saveTrailSchema.safeParse(body);
     if (!parsed.success) return jsonError("Invalid input", 400, parsed.error.flatten());
 
-    await prisma.savedTrail.deleteMany({ where: { userId: user.id, trailId: parsed.data.trailId } });
+    await prisma.savedTrail.deleteMany({
+      where: { userId: user.id, trailId: parsed.data.trailId },
+    });
     await audit({ userId: user.id, action: "UNSAVE_TRAIL", target: parsed.data.trailId, ip, ua });
 
     return jsonOk({ saved: false });

@@ -40,7 +40,7 @@ export async function rateLimit(opts: {
       target: opts.key,
       meta: { max, windowSec },
       ip: opts.ip ?? null,
-      ua: opts.ua ?? null
+      ua: opts.ua ?? null,
     });
     return { ok: false, retryAfterSec };
   }

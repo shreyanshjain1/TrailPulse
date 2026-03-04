@@ -6,7 +6,13 @@ import { toast } from "sonner";
 import { CalendarPlus, CalendarX } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export function CalendarSyncButtons({ planId, initialHasEvent }: { planId: string; initialHasEvent: boolean }) {
+export function CalendarSyncButtons({
+  planId,
+  initialHasEvent,
+}: {
+  planId: string;
+  initialHasEvent: boolean;
+}) {
   const [hasEvent, setHasEvent] = useState(initialHasEvent);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -17,7 +23,7 @@ export function CalendarSyncButtons({ planId, initialHasEvent }: { planId: strin
       const res = await fetch("/api/calendar/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId })
+        body: JSON.stringify({ planId }),
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
@@ -40,7 +46,7 @@ export function CalendarSyncButtons({ planId, initialHasEvent }: { planId: strin
       const res = await fetch("/api/calendar/create", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId })
+        body: JSON.stringify({ planId }),
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {

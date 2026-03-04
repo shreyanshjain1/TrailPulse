@@ -52,9 +52,7 @@ function weatherStatus(payload: any) {
   const temp = payload?.temperature_c ?? payload?.raw?.current?.temperature_2m ?? null;
   const wind = payload?.wind_kph ?? payload?.raw?.current?.wind_speed_10m ?? null;
   const rain =
-    payload?.precipitation_chance ??
-    payload?.raw?.hourly?.precipitation_probability?.[0] ??
-    null;
+    payload?.precipitation_chance ?? payload?.raw?.hourly?.precipitation_probability?.[0] ?? null;
 
   const rainNum = rain != null ? Number(rain) : null;
   const windNum = wind != null ? Number(wind) : null;
@@ -194,10 +192,13 @@ export function PlanReadiness({
             type: s?.type ? String(s.type) : undefined,
           }))
         : [],
-    [routeSections]
+    [routeSections],
   );
 
-  const timeline = useMemo(() => planTimeline(startAt, durationMin, sections), [startAt, durationMin, sections]);
+  const timeline = useMemo(
+    () => planTimeline(startAt, durationMin, sections),
+    [startAt, durationMin, sections],
+  );
 
   const w = useMemo(() => weatherStatus(weatherPayload), [weatherPayload]);
 
@@ -210,7 +211,7 @@ export function PlanReadiness({
         weatherFetchedAt,
         weatherGoStatus: w.status,
       }),
-    [calendarSynced, done, total, weatherFetchedAt, w.status]
+    [calendarSynced, done, total, weatherFetchedAt, w.status],
   );
 
   async function toggle(id: string) {
@@ -292,7 +293,11 @@ export function PlanReadiness({
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={markAllDone} disabled={total === 0 || done === total}>
+            <Button
+              variant="outline"
+              onClick={markAllDone}
+              disabled={total === 0 || done === total}
+            >
               Mark all done
             </Button>
             <Button onClick={() => setPackingMode(false)}>Exit</Button>
@@ -306,7 +311,7 @@ export function PlanReadiness({
               onClick={() => toggle(it.id)}
               className={cn(
                 "flex w-full items-center justify-between rounded-2xl border px-4 py-4 text-left transition",
-                it.isDone ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-card hover:bg-muted/30"
+                it.isDone ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-card hover:bg-muted/30",
               )}
             >
               <div className="flex items-center gap-3">
@@ -315,12 +320,17 @@ export function PlanReadiness({
                     "inline-flex h-8 w-8 items-center justify-center rounded-xl border text-sm font-bold",
                     it.isDone
                       ? "border-emerald-600 bg-emerald-600 text-white"
-                      : "border-zinc-300 dark:border-zinc-700"
+                      : "border-zinc-300 dark:border-zinc-700",
                   )}
                 >
                   ✓
                 </span>
-                <div className={cn("text-base font-semibold", it.isDone && "line-through text-muted-foreground")}>
+                <div
+                  className={cn(
+                    "text-base font-semibold",
+                    it.isDone && "line-through text-muted-foreground",
+                  )}
+                >
                   {it.text}
                 </div>
               </div>
@@ -353,7 +363,15 @@ export function PlanReadiness({
 
             <div className="mt-3 flex items-center justify-center">
               <svg width="120" height="120" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r={ring.r} stroke="currentColor" strokeOpacity="0.12" strokeWidth="12" fill="none" />
+                <circle
+                  cx="60"
+                  cy="60"
+                  r={ring.r}
+                  stroke="currentColor"
+                  strokeOpacity="0.12"
+                  strokeWidth="12"
+                  fill="none"
+                />
                 <motion.circle
                   cx="60"
                   cy="60"
@@ -419,15 +437,21 @@ export function PlanReadiness({
           <div className="mt-2 grid grid-cols-3 gap-2">
             <div className="rounded-xl border bg-muted/30 p-3 text-center">
               <div className="text-xs text-muted-foreground">Temp</div>
-              <div className="text-sm font-semibold">{w.temp != null ? `${Number(w.temp).toFixed(1)}°C` : "-"}</div>
+              <div className="text-sm font-semibold">
+                {w.temp != null ? `${Number(w.temp).toFixed(1)}°C` : "-"}
+              </div>
             </div>
             <div className="rounded-xl border bg-muted/30 p-3 text-center">
               <div className="text-xs text-muted-foreground">Wind</div>
-              <div className="text-sm font-semibold">{w.wind != null ? `${Math.round(w.wind)} kph` : "-"}</div>
+              <div className="text-sm font-semibold">
+                {w.wind != null ? `${Math.round(w.wind)} kph` : "-"}
+              </div>
             </div>
             <div className="rounded-xl border bg-muted/30 p-3 text-center">
               <div className="text-xs text-muted-foreground">Rain</div>
-              <div className="text-sm font-semibold">{w.rain != null ? `${Math.round(w.rain)}%` : "-"}</div>
+              <div className="text-sm font-semibold">
+                {w.rain != null ? `${Math.round(w.rain)}%` : "-"}
+              </div>
             </div>
           </div>
 
@@ -447,7 +471,10 @@ export function PlanReadiness({
           </Button>
 
           {!calendarSynced ? (
-            <Button onClick={syncCalendar} className="bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200">
+            <Button
+              onClick={syncCalendar}
+              className="bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            >
               Add to Google Calendar
             </Button>
           ) : (
@@ -495,19 +522,28 @@ export function PlanReadiness({
                 onClick={() => toggle(it.id)}
                 className={cn(
                   "flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition",
-                  it.isDone ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-background hover:bg-muted/40"
+                  it.isDone
+                    ? "bg-emerald-50 dark:bg-emerald-950/30"
+                    : "bg-background hover:bg-muted/40",
                 )}
               >
                 <span
                   className={cn(
                     "mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md border text-xs font-semibold",
-                    it.isDone ? "border-emerald-500 bg-emerald-500 text-white" : "border-zinc-300 dark:border-zinc-700"
+                    it.isDone
+                      ? "border-emerald-500 bg-emerald-500 text-white"
+                      : "border-zinc-300 dark:border-zinc-700",
                   )}
                 >
                   ✓
                 </span>
                 <div className="min-w-0">
-                  <div className={cn("text-sm font-medium", it.isDone && "line-through text-muted-foreground")}>
+                  <div
+                    className={cn(
+                      "text-sm font-medium",
+                      it.isDone && "line-through text-muted-foreground",
+                    )}
+                  >
                     {it.text}
                   </div>
                 </div>

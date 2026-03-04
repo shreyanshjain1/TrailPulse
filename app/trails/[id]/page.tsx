@@ -61,11 +61,7 @@ function getDifficultyBadgeClasses(difficulty: string) {
   }
 }
 
-export default async function TrailDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function TrailDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   if (!user) return null;
 
@@ -93,18 +89,14 @@ export default async function TrailDetailPage({
 
   const avgRating =
     trail.reviews.length > 0
-      ? (
-          trail.reviews.reduce((sum, r) => sum + r.rating, 0) / trail.reviews.length
-        ).toFixed(1)
+      ? (trail.reviews.reduce((sum, r) => sum + r.rating, 0) / trail.reviews.length).toFixed(1)
       : null;
 
   const latest = (trail.weatherSnapshots[0]?.payload as any) || undefined;
   const temp = latest?.temperature_c ?? latest?.raw?.current?.temperature_2m ?? null;
   const wind = latest?.wind_kph ?? latest?.raw?.current?.wind_speed_10m ?? null;
   const rain =
-    latest?.precipitation_chance ??
-    latest?.raw?.hourly?.precipitation_probability?.[0] ??
-    null;
+    latest?.precipitation_chance ?? latest?.raw?.hourly?.precipitation_probability?.[0] ?? null;
 
   const heroImage =
     trail.imageUrl ||
@@ -129,8 +121,8 @@ export default async function TrailDetailPage({
             (idx === 0
               ? "Trailhead section. Set your pace and check your essentials before climbing."
               : idx === routeSections.length - 1
-              ? "Final section / viewpoint area. Terrain can be exposed and windy."
-              : "Intermediate section of the trail route."),
+                ? "Final section / viewpoint area. Terrain can be exposed and windy."
+                : "Intermediate section of the trail route."),
         }))
       : [
           {
@@ -184,16 +176,19 @@ export default async function TrailDetailPage({
 
           <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6">
             <div className="mb-3 flex flex-wrap gap-2">
-              {[trail.region, trail.difficulty, `${trail.distanceKm} km`, `${trail.elevationGainM} m gain`].map(
-                (pill) => (
-                  <span
-                    key={pill}
-                    className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white backdrop-blur"
-                  >
-                    {pill}
-                  </span>
-                )
-              )}
+              {[
+                trail.region,
+                trail.difficulty,
+                `${trail.distanceKm} km`,
+                `${trail.elevationGainM} m gain`,
+              ].map((pill) => (
+                <span
+                  key={pill}
+                  className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white backdrop-blur"
+                >
+                  {pill}
+                </span>
+              ))}
             </div>
 
             <h1 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">
@@ -276,12 +271,13 @@ export default async function TrailDetailPage({
             <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
               {hasRouteLine ? (
                 <>
-                  Showing seeded route polyline + section markers. Next upgrade: import real GPX/GeoJSON
-                  per trail from official hiking sources / community tracks.
+                  Showing seeded route polyline + section markers. Next upgrade: import real
+                  GPX/GeoJSON per trail from official hiking sources / community tracks.
                 </>
               ) : (
                 <>
-                  No route line yet for this trail. The map is still centered to the trail coordinates.
+                  No route line yet for this trail. The map is still centered to the trail
+                  coordinates.
                 </>
               )}
             </div>
@@ -417,7 +413,8 @@ export default async function TrailDetailPage({
               </>
             ) : (
               <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                No weather snapshot yet. Save or plan this trail, then run the worker to fetch weather.
+                No weather snapshot yet. Save or plan this trail, then run the worker to fetch
+                weather.
               </p>
             )}
           </section>
@@ -482,7 +479,7 @@ export default async function TrailDetailPage({
                 <span className="text-zinc-500">Difficulty</span>
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs font-semibold ${getDifficultyBadgeClasses(
-                    trail.difficulty
+                    trail.difficulty,
                   )}`}
                 >
                   {trail.difficulty}

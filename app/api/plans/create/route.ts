@@ -8,7 +8,11 @@ import { z } from "zod";
 const schema = z.object({
   trailId: z.string().min(1),
   startAt: z.string().datetime(),
-  durationMin: z.number().int().min(30).max(24 * 60),
+  durationMin: z
+    .number()
+    .int()
+    .min(30)
+    .max(24 * 60),
   notes: z.string().max(5000).nullable().optional(),
   checklist: z.array(z.string().min(1).max(200)).max(60).optional(),
 });

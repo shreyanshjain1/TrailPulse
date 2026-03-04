@@ -66,10 +66,7 @@ async function runWeatherSync(jobId: string) {
       take: 50,
       select: { id: true, lat: true, lng: true },
       where: {
-        OR: [
-          { savedBy: { some: {} } },
-          { plans: { some: {} } },
-        ],
+        OR: [{ savedBy: { some: {} } }, { plans: { some: {} } }],
       },
     });
 
@@ -133,7 +130,7 @@ async function main() {
     async (job) => {
       await runWeatherSync(String(job.id));
     },
-    { connection: redis }
+    { connection: redis },
   );
 
   const digestWorker = new Worker(
@@ -141,7 +138,7 @@ async function main() {
     async (job) => {
       await runDigest(String(job.id));
     },
-    { connection: redis }
+    { connection: redis },
   );
 
   weatherWorker.on("failed", (job, err) => {
@@ -162,7 +159,7 @@ async function main() {
     {
       repeat: { every: Math.max(1, everyHours) * 60 * 60 * 1000 },
       jobId: "weatherSync-repeat",
-    }
+    },
   );
 
   // Run digest daily at local hour (approx via cron)
@@ -173,7 +170,7 @@ async function main() {
     {
       repeat: { pattern: `0 ${Math.min(23, Math.max(0, digestHour))} * * *` },
       jobId: "digest-daily",
-    }
+    },
   );
 
   console.log("Worker ready: weatherSync + digest scheduled.");

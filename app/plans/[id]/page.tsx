@@ -4,11 +4,7 @@ import { prisma } from "@/src/server/prisma";
 import { requireUser } from "@/src/server/authz";
 import { PlanReadiness } from "@/src/components/plan-readiness";
 
-export default async function PlanDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function PlanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   if (!user) redirect("/api/auth/signin");
 

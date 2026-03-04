@@ -9,7 +9,9 @@ export function ThemeToggle() {
 
   useEffect(() => {
     const stored = localStorage.getItem("trailpulse_theme");
-    const isDark = stored ? stored === "dark" : window.matchMedia?.("(prefers-color-scheme: dark)")?.matches;
+    const isDark = stored
+      ? stored === "dark"
+      : window.matchMedia?.("(prefers-color-scheme: dark)")?.matches;
     setDark(!!isDark);
     document.documentElement.classList.toggle("dark", !!isDark);
   }, []);

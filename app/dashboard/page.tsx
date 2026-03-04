@@ -66,8 +66,8 @@ export default async function DashboardPage() {
                 Welcome back{user.name ? `, ${user.name.split(" ")[0]}` : ""}
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
-                Plan hikes, track saved trails, and stay weather-ready with a cleaner
-                command center for your next outdoor trip.
+                Plan hikes, track saved trails, and stay weather-ready with a cleaner command center
+                for your next outdoor trip.
               </p>
             </div>
 
@@ -123,9 +123,7 @@ export default async function DashboardPage() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">Upcoming hikes</h2>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Your next scheduled plans
-              </p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Your next scheduled plans</p>
             </div>
             <Link
               href="/trails"
@@ -189,9 +187,7 @@ export default async function DashboardPage() {
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight">Saved trails</h2>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  Recently saved
-                </p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">Recently saved</p>
               </div>
               <Link href="/trails" className="text-sm font-medium underline underline-offset-2">
                 See all

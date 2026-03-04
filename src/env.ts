@@ -28,7 +28,7 @@ const envSchema = z.object({
 
   // Rate limit
   RATE_LIMIT_WINDOW_SEC: z.coerce.number().int().min(10).max(3600).default(60),
-  RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(500).default(30)
+  RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(500).default(30),
 });
 
 export const env = envSchema.parse({
@@ -45,5 +45,5 @@ export const env = envSchema.parse({
   WEATHER_SYNC_EVERY_HOURS: process.env.WEATHER_SYNC_EVERY_HOURS,
   DIGEST_HOUR_LOCAL: process.env.DIGEST_HOUR_LOCAL,
   RATE_LIMIT_WINDOW_SEC: process.env.RATE_LIMIT_WINDOW_SEC,
-  RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX
+  RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX,
 });

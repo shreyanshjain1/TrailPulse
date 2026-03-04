@@ -36,7 +36,14 @@ export async function POST(req: Request) {
     });
     if (!plan) return jsonError("Plan not found", 404);
     if (plan.userId !== user.id) {
-      await audit({ userId: user.id, action: "AUTHZ_DENIED", target: parsed.data.planId, meta: { resource: "HikePlan" }, ip, ua });
+      await audit({
+        userId: user.id,
+        action: "AUTHZ_DENIED",
+        target: parsed.data.planId,
+        meta: { resource: "HikePlan" },
+        ip,
+        ua,
+      });
       return jsonError("Forbidden", 403);
     }
 

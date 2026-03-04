@@ -29,7 +29,7 @@ export function JobsAdminTable({ initial }: { initial: JR[] }) {
       const res = await fetch("/api/jobs/retry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ queue, jobId })
+        body: JSON.stringify({ queue, jobId }),
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
@@ -43,7 +43,11 @@ export function JobsAdminTable({ initial }: { initial: JR[] }) {
   }
 
   if (items.length === 0) {
-    return <div className="rounded-xl border border-dashed border-zinc-200 p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">No job runs yet.</div>;
+    return (
+      <div className="rounded-xl border border-dashed border-zinc-200 p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+        No job runs yet.
+      </div>
+    );
   }
 
   return (
@@ -53,11 +57,24 @@ export function JobsAdminTable({ initial }: { initial: JR[] }) {
       </div>
       <div className="space-y-2">
         {items.map((j) => (
-          <div key={j.id} className="rounded-xl border border-zinc-200 p-3 text-sm dark:border-zinc-800">
+          <div
+            key={j.id}
+            className="rounded-xl border border-zinc-200 p-3 text-sm dark:border-zinc-800"
+          >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Badge>{j.queue}</Badge>
-                <Badge variant={j.status === "failed" ? "danger" : j.status === "completed" ? "success" : "default"}>{j.status}</Badge>
+                <Badge
+                  variant={
+                    j.status === "failed"
+                      ? "danger"
+                      : j.status === "completed"
+                        ? "success"
+                        : "default"
+                  }
+                >
+                  {j.status}
+                </Badge>
                 <span className="font-medium">{j.name}</span>
                 <span className="text-xs text-zinc-600 dark:text-zinc-400">jobId: {j.jobId}</span>
               </div>
@@ -70,7 +87,8 @@ export function JobsAdminTable({ initial }: { initial: JR[] }) {
               </div>
             </div>
             <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
-              Started: {format(new Date(j.startedAt), "PPpp")} {j.finishedAt ? `• Finished: ${format(new Date(j.finishedAt), "PPpp")}` : ""}
+              Started: {format(new Date(j.startedAt), "PPpp")}{" "}
+              {j.finishedAt ? `• Finished: ${format(new Date(j.finishedAt), "PPpp")}` : ""}
               {" • "}Attempts: {j.attempts}
             </div>
             {j.error ? (

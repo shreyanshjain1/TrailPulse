@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/src/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/src/components/ui/dialog";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Textarea } from "@/src/components/ui/textarea";
@@ -54,8 +62,8 @@ export function PlanHikeModal({ trailId, trailName }: { trailId: string; trailNa
           startAt: new Date(startAt).toISOString(),
           durationMin: Number(durationMin),
           notes: notes || undefined,
-          checklist
-        })
+          checklist,
+        }),
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
@@ -84,28 +92,46 @@ export function PlanHikeModal({ trailId, trailName }: { trailId: string; trailNa
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Plan hike</DialogTitle>
-          <DialogDescription>Create a plan for: <span className="font-medium">{trailName}</span></DialogDescription>
+          <DialogDescription>
+            Create a plan for: <span className="font-medium">{trailName}</span>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
             <Label>Date & time</Label>
-            <Input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+            <Input
+              type="datetime-local"
+              value={startAt}
+              onChange={(e) => setStartAt(e.target.value)}
+            />
           </div>
           <div>
             <Label>Duration (minutes)</Label>
-            <Input inputMode="numeric" value={durationMin} onChange={(e) => setDurationMin(e.target.value)} />
+            <Input
+              inputMode="numeric"
+              value={durationMin}
+              onChange={(e) => setDurationMin(e.target.value)}
+            />
           </div>
           <div>
             <Label>Notes</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Meetup spot, pacing, reminders…" />
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Meetup spot, pacing, reminders…"
+            />
           </div>
 
           <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
             <div className="flex items-end gap-2">
               <div className="flex-1">
                 <Label>Checklist item</Label>
-                <Input value={checklistText} onChange={(e) => setChecklistText(e.target.value)} placeholder="e.g., Trekking poles" />
+                <Input
+                  value={checklistText}
+                  onChange={(e) => setChecklistText(e.target.value)}
+                  placeholder="e.g., Trekking poles"
+                />
               </div>
               <Button type="button" variant="secondary" className="gap-2" onClick={addItem}>
                 <Plus className="h-4 w-4" />
@@ -114,11 +140,16 @@ export function PlanHikeModal({ trailId, trailName }: { trailId: string; trailNa
             </div>
 
             {checklist.length === 0 ? (
-              <div className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">No checklist items yet.</div>
+              <div className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+                No checklist items yet.
+              </div>
             ) : (
               <ul className="mt-3 space-y-2">
                 {checklist.map((item, i) => (
-                  <li key={`${item}-${i}`} className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 text-sm dark:bg-zinc-900">
+                  <li
+                    key={`${item}-${i}`}
+                    className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 text-sm dark:bg-zinc-900"
+                  >
                     <span>{item}</span>
                     <button
                       className="rounded-md p-1 hover:bg-zinc-200/50 dark:hover:bg-zinc-800"
@@ -136,8 +167,12 @@ export function PlanHikeModal({ trailId, trailName }: { trailId: string; trailNa
         </div>
 
         <DialogFooter className="mt-2">
-          <Button variant="secondary" onClick={() => setOpen(false)} type="button">Cancel</Button>
-          <Button onClick={submit} disabled={loading} type="button">Create plan</Button>
+          <Button variant="secondary" onClick={() => setOpen(false)} type="button">
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={loading} type="button">
+            Create plan
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -8,6 +8,13 @@
     "jsx": "react-jsx",
     "incremental": false
   },
-  "include": ["src/worker/**/*.ts", "src/lib/**/*.ts", "src/server/**/*.ts", "src/env.ts", "src/types/**/*.ts", "prisma/**/*.ts"],
+  "include": [
+    "src/worker/**/*.ts",
+    "src/lib/**/*.ts",
+    "src/server/**/*.ts",
+    "src/env.ts",
+    "src/types/**/*.ts",
+    "prisma/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

@@ -10,14 +10,24 @@ export async function POST(req: Request) {
   const { ip, ua } = getIpUa(req);
   try {
     const user = await requireUserOrThrow({ ip, ua });
-    const rl = await rateLimit({ key: `planCreate:${user.id}`, max: 10, windowSec: 60, userId: user.id, ip, ua });
+    const rl = await rateLimit({
+      key: `planCreate:${user.id}`,
+      max: 10,
+      windowSec: 60,
+      userId: user.id,
+      ip,
+      ua,
+    });
     if (!rl.ok) return jsonError("Too many requests", 429, { retryAfterSec: rl.retryAfterSec });
 
     const body = await req.json();
     const parsed = planCreateSchema.safeParse(body);
     if (!parsed.success) return jsonError("Invalid input", 400, parsed.error.flatten());
 
-    const trail = await prisma.trail.findUnique({ where: { id: parsed.data.trailId }, select: { id: true, name: true } });
+    const trail = await prisma.trail.findUnique({
+      where: { id: parsed.data.trailId },
+      select: { id: true, name: true },
+    });
     if (!trail) return jsonError("Trail not found", 404);
 
     const startAt = new Date(parsed.data.startAt);
@@ -31,16 +41,25 @@ export async function POST(req: Request) {
         durationMin: parsed.data.durationMin,
         notes: parsed.data.notes ?? null,
         checklist: {
-          create: (parsed.data.checklist ?? []).map((text, i) => ({ text, sortOrder: i }))
-        }
+          create: (parsed.data.checklist ?? []).map((text, i) => ({ text, sortOrder: i })),
+        },
       },
-      include: { trail: true }
+      include: { trail: true },
     });
 
-    await audit({ userId: user.id, action: "PLAN_CREATE", target: plan.id, meta: { trailId: trail.id }, ip, ua });
+    await audit({
+      userId: user.id,
+      action: "PLAN_CREATE",
+      target: plan.id,
+      meta: { trailId: trail.id },
+      ip,
+      ua,
+    });
 
     // Fire-and-forget: refresh conditions for this trail
-    weatherSyncQueue.add("weatherSync", { trigger: "planCreate", trailId: trail.id }).catch(() => {});
+    weatherSyncQueue
+      .add("weatherSync", { trigger: "planCreate", trailId: trail.id })
+      .catch(() => {});
 
     return jsonOk({ planId: plan.id });
   } catch (e: any) {

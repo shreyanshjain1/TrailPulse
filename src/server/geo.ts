@@ -1,9 +1,4 @@
-export function haversineKm(
-  aLat: number,
-  aLng: number,
-  bLat: number,
-  bLng: number
-): number {
+export function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const toRad = (v: number) => (v * Math.PI) / 180;
 
   const R = 6371; // km

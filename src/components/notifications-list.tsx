@@ -103,10 +103,7 @@ export function NotificationsList({ initial }: { initial: N[] }) {
 
           <div className="space-y-2">
             {g.items.map((n) => (
-              <div
-                key={n.id}
-                className="rounded-2xl border bg-card p-4 transition hover:shadow-sm"
-              >
+              <div key={n.id} className="rounded-2xl border bg-card p-4 transition hover:shadow-sm">
                 <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">

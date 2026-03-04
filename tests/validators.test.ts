@@ -11,7 +11,7 @@ describe("zod validators", () => {
     const r = planCreateSchema.safeParse({
       trailId: "t1",
       startAt: new Date().toISOString(),
-      durationMin: 1
+      durationMin: 1,
     });
     expect(r.success).toBe(false);
   });

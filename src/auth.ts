@@ -10,7 +10,7 @@ const adminEmails = new Set(
   (env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
-    .filter(Boolean)
+    .filter(Boolean),
 );
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -27,13 +27,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             "openid",
             "email",
             "profile",
-            "https://www.googleapis.com/auth/calendar.events"
+            "https://www.googleapis.com/auth/calendar.events",
           ].join(" "),
           access_type: "offline",
-          prompt: "consent"
-        }
-      }
-    })
+          prompt: "consent",
+        },
+      },
+    }),
   ],
   callbacks: {
     async signIn({ user, account, profile, request }) {
@@ -66,15 +66,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = user.role;
       }
       return session;
-    }
+    },
   },
   pages: {
-    signIn: "/signin"
+    signIn: "/signin",
   },
   cookies: {
     // NextAuth v5 uses secure defaults. This ensures HttpOnly + sameSite by default.
   },
-  trustHost: true
+  trustHost: true,
 });
 
 declare module "next-auth" {

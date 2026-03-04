@@ -5,7 +5,7 @@ import { env } from "@/src/env";
 export async function getGoogleClientForUser(userId: string) {
   const account = await prisma.account.findFirst({
     where: { userId, provider: "google" },
-    select: { access_token: true, refresh_token: true, expires_at: true }
+    select: { access_token: true, refresh_token: true, expires_at: true },
   });
 
   if (!account?.refresh_token) {
@@ -17,13 +17,13 @@ export async function getGoogleClientForUser(userId: string) {
   const oauth2 = new google.auth.OAuth2(
     env.GOOGLE_CLIENT_ID,
     env.GOOGLE_CLIENT_SECRET,
-    env.GOOGLE_CALENDAR_REDIRECT_URI
+    env.GOOGLE_CALENDAR_REDIRECT_URI,
   );
 
   oauth2.setCredentials({
     access_token: account.access_token ?? undefined,
     refresh_token: account.refresh_token ?? undefined,
-    expiry_date: account.expires_at ? account.expires_at * 1000 : undefined
+    expiry_date: account.expires_at ? account.expires_at * 1000 : undefined,
   });
 
   // Auto-refresh tokens when needed
@@ -35,8 +35,8 @@ export async function getGoogleClientForUser(userId: string) {
       data: {
         access_token: tokens.access_token ?? undefined,
         refresh_token: tokens.refresh_token ?? undefined,
-        expires_at: tokens.expiry_date ? Math.floor(tokens.expiry_date / 1000) : undefined
-      }
+        expires_at: tokens.expiry_date ? Math.floor(tokens.expiry_date / 1000) : undefined,
+      },
     });
   });
 
@@ -60,8 +60,8 @@ export async function createCalendarEvent(opts: {
       summary: opts.title,
       description: opts.description,
       start: { dateTime: opts.startAt.toISOString() },
-      end: { dateTime: opts.endAt.toISOString() }
-    }
+      end: { dateTime: opts.endAt.toISOString() },
+    },
   });
 
   const eventId = res.data.id;
@@ -70,7 +70,7 @@ export async function createCalendarEvent(opts: {
   await prisma.calendarEventLink.upsert({
     where: { planId: opts.planId },
     update: { eventId, calendarId: "primary" },
-    create: { planId: opts.planId, eventId, calendarId: "primary" }
+    create: { planId: opts.planId, eventId, calendarId: "primary" },
   });
 
   return eventId;

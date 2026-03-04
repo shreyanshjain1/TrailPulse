@@ -101,13 +101,13 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
     // datetime-local expects "YYYY-MM-DDTHH:mm"
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-      d.getHours()
+      d.getHours(),
     )}:${pad(d.getMinutes())}`;
   });
 
   const suggestedDuration = useMemo(
     () => estimateDurationMinutes(trail.distanceKm, trail.elevationGainM, trail.difficulty),
-    [trail.distanceKm, trail.elevationGainM, trail.difficulty]
+    [trail.distanceKm, trail.elevationGainM, trail.difficulty],
   );
 
   const [durationMin, setDurationMin] = useState<number>(suggestedDuration);
@@ -120,7 +120,7 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
 
   const water = useMemo(
     () => waterLiters(trail.distanceKm, durationMin, heatFactor),
-    [trail.distanceKm, durationMin, heatFactor]
+    [trail.distanceKm, durationMin, heatFactor],
   );
 
   const snacks = useMemo(() => snacksEstimate(durationMin), [durationMin]);
@@ -161,8 +161,17 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
         return;
       }
 
-      toast.success("Plan created");
-      window.location.href = `/plans/${json.planId}`;
+      toast.success("Plan created", {
+        action: {
+          label: "Open plan",
+          onClick: () => {
+            window.location.href = `/plans/${json.planId}`;
+          },
+        },
+      });
+      setTimeout(() => {
+        window.location.href = `/plans/${json.planId}`;
+      }, 700);
     } catch {
       toast.error("Network error");
     }
@@ -297,7 +306,8 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
             </div>
           </div>
           <div className="mt-2 text-xs text-muted-foreground">
-            These are simple heuristics for planning — adjust based on your actual fitness + trail conditions.
+            These are simple heuristics for planning — adjust based on your actual fitness + trail
+            conditions.
           </div>
         </div>
 
@@ -378,7 +388,8 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
         <div className="mt-5 rounded-2xl border bg-emerald-50 p-4 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
           <div className="font-semibold">Ready-to-go tip</div>
           <div className="mt-1 text-xs">
-            After creating your plan, TrailPulse will show a readiness score (checklist progress + weather freshness + calendar sync).
+            After creating your plan, TrailPulse will show a readiness score (checklist progress +
+            weather freshness + calendar sync).
           </div>
         </div>
       </section>

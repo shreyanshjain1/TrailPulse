@@ -83,13 +83,11 @@ const trails = Array.from({ length: 36 }).map((_, idx) => {
   const n = idx + 1;
   const region = pick(
     ["Bicol", "Cordillera", "Cebu", "Davao", "Laguna", "Rizal", "Batangas", "Ilocos"],
-    idx
+    idx,
   );
   const difficulty = pick([Difficulty.EASY, Difficulty.MODERATE, Difficulty.HARD], idx);
 
-  const distanceKm = Number(
-    (6 + (idx % 10) + (difficulty === Difficulty.HARD ? 4 : 0)).toFixed(1)
-  );
+  const distanceKm = Number((6 + (idx % 10) + (difficulty === Difficulty.HARD ? 4 : 0)).toFixed(1));
   const elevationGainM = 300 + (idx % 12) * 85 + (difficulty === Difficulty.HARD ? 500 : 0);
 
   const lat = 7 + (idx % 10) * 0.35 + (difficulty === Difficulty.HARD ? 0.1 : 0);
@@ -105,7 +103,7 @@ const trails = Array.from({ length: 36 }).map((_, idx) => {
         "Cloudline Traverse",
         "Hidden Falls Path",
       ],
-      idx
+      idx,
     )}`,
     region,
     difficulty,
@@ -124,7 +122,7 @@ const trails = Array.from({ length: 36 }).map((_, idx) => {
         "Rolling terrain with occasional steep bursts and photo-worthy ridgelines.",
         "A relaxing path to a waterfall with safe viewing points.",
       ],
-      idx
+      idx,
     ),
 
     imageUrl: trailImages[idx % trailImages.length],

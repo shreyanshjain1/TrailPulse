@@ -93,10 +93,7 @@ export default function TrailMap({
       routeLatLngs = routeGeoJson.geometry.coordinates
         .filter(
           (c) =>
-            Array.isArray(c) &&
-            c.length >= 2 &&
-            Number.isFinite(c[0]) &&
-            Number.isFinite(c[1])
+            Array.isArray(c) && c.length >= 2 && Number.isFinite(c[0]) && Number.isFinite(c[1]),
         )
         .map((c) => [c[1], c[0]]); // GeoJSON [lng,lat] -> Leaflet [lat,lng]
 
@@ -182,7 +179,7 @@ export default function TrailMap({
           `<div style="min-width:180px">
             <div style="font-weight:600">${section.label}</div>
             ${section.note ? `<div style="margin-top:4px;color:#666;font-size:12px">${section.note}</div>` : ""}
-          </div>`
+          </div>`,
         );
     });
 

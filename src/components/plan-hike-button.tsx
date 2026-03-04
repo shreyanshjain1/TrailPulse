@@ -4,13 +4,7 @@ import Link from "next/link";
 import { Button } from "@/src/components/ui/button";
 import { CalendarPlus } from "lucide-react";
 
-export function PlanHikeButton({
-  trailId,
-  className,
-}: {
-  trailId: string;
-  className?: string;
-}) {
+export function PlanHikeButton({ trailId, className }: { trailId: string; className?: string }) {
   return (
     <Button asChild className={className ?? ""}>
       <Link href={`/trails/${encodeURIComponent(trailId)}#plan`}>

@@ -69,7 +69,11 @@ export function PlansList({ initial }: { initial: Plan[] }) {
       <div className="rounded-2xl border border-dashed p-10 text-center">
         <div className="text-base font-semibold">No plans yet</div>
         <div className="mt-1 text-sm text-muted-foreground">
-          Go to <Link className="underline" href="/trails">Trails</Link> and click <b>Plan hike</b>.
+          Go to{" "}
+          <Link className="underline" href="/trails">
+            Trails
+          </Link>{" "}
+          and click <b>Plan hike</b>.
         </div>
       </div>
     );
@@ -113,9 +117,7 @@ export function PlansList({ initial }: { initial: Plan[] }) {
                 </div>
 
                 {p.notes ? (
-                  <div className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                    {p.notes}
-                  </div>
+                  <div className="mt-2 line-clamp-2 text-sm text-muted-foreground">{p.notes}</div>
                 ) : null}
               </div>
 

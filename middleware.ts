@@ -24,7 +24,7 @@ export function middleware(req: NextRequest) {
     "style-src 'self' 'unsafe-inline' https:",
     isProd ? "script-src 'self' https:" : "script-src 'self' 'unsafe-eval' 'unsafe-inline' https:",
     "connect-src 'self' https:",
-    "object-src 'none'"
+    "object-src 'none'",
   ].join("; ");
 
   res.headers.set("Content-Security-Policy", csp);
@@ -38,5 +38,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"]
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

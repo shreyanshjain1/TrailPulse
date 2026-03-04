@@ -27,12 +27,8 @@ export async function listTrails(options: ListTrailsOptions = {}) {
           f.difficulty ? { difficulty: f.difficulty } : {},
           f.minDistanceKm != null ? { distanceKm: { gte: f.minDistanceKm } } : {},
           f.maxDistanceKm != null ? { distanceKm: { lte: f.maxDistanceKm } } : {},
-          f.minElevationGainM != null
-            ? { elevationGainM: { gte: f.minElevationGainM } }
-            : {},
-          f.maxElevationGainM != null
-            ? { elevationGainM: { lte: f.maxElevationGainM } }
-            : {},
+          f.minElevationGainM != null ? { elevationGainM: { gte: f.minElevationGainM } } : {},
+          f.maxElevationGainM != null ? { elevationGainM: { lte: f.maxElevationGainM } } : {},
         ],
       },
       include: {
@@ -55,16 +51,15 @@ export async function listTrails(options: ListTrailsOptions = {}) {
   ]);
 
   const hasHome =
-    user?.homeLat != null && user?.homeLng != null && Number.isFinite(user.homeLat) && Number.isFinite(user.homeLng);
+    user?.homeLat != null &&
+    user?.homeLng != null &&
+    Number.isFinite(user.homeLat) &&
+    Number.isFinite(user.homeLng);
 
   const mapped = trails.map((t) => {
     const avgRating =
       t.reviews.length > 0
-        ? Number(
-            (
-              t.reviews.reduce((sum, r) => sum + r.rating, 0) / t.reviews.length
-            ).toFixed(1)
-          )
+        ? Number((t.reviews.reduce((sum, r) => sum + r.rating, 0) / t.reviews.length).toFixed(1))
         : null;
 
     const distanceFromStartKm = hasHome
@@ -90,13 +85,12 @@ export async function listTrails(options: ListTrailsOptions = {}) {
 
   return {
     trails: mapped,
-    homeLocation:
-      hasHome
-        ? {
-            label: user?.homeLabel || "Saved start location",
-            lat: user!.homeLat!,
-            lng: user!.homeLng!,
-          }
-        : null,
+    homeLocation: hasHome
+      ? {
+          label: user?.homeLabel || "Saved start location",
+          lat: user!.homeLat!,
+          lng: user!.homeLng!,
+        }
+      : null,
   };
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/src/server/authz";
 import { listTrails } from "@/src/server/trails";
 import { TrailsFilters } from "@/src/components/trails-filters";
+import { PlanCTA } from "@/src/components/plan-cta";
 
 type SearchParams = {
   q?: string;
@@ -19,6 +20,7 @@ export default async function TrailsPage({
 }) {
   const user = await requireUser();
   const params = searchParams ? await searchParams : {};
+
   const { trails, homeLocation } = await listTrails({
     raw: params ?? {},
     userId: user?.id ?? null,
@@ -63,7 +65,10 @@ export default async function TrailsPage({
           >
             <div className="relative h-44 w-full overflow-hidden">
               <img
-                src={trail.imageUrl || `https://source.unsplash.com/1200x800/?mountain,hiking,trail&sig=${trail.id}`}
+                src={
+                  trail.imageUrl ||
+                  `https://source.unsplash.com/1200x800/?mountain,hiking,trail&sig=${trail.id}`
+                }
                 alt={trail.name}
                 className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
               />
@@ -79,22 +84,27 @@ export default async function TrailsPage({
                 <span className="rounded-full border px-2 py-0.5">{trail.difficulty}</span>
                 <span className="rounded-full border px-2 py-0.5">{trail.distanceKm} km</span>
                 <span className="rounded-full border px-2 py-0.5">{trail.elevationGainM} m gain</span>
-                {trail.distanceFromStartKm != null && (
+                {trail.distanceFromStartKm != null ? (
                   <span className="rounded-full border bg-emerald-50 px-2 py-0.5 dark:bg-emerald-950/30">
                     {trail.distanceFromStartKm.toFixed(1)} km away
                   </span>
-                )}
+                ) : null}
               </div>
 
-              <p className="line-clamp-2 text-sm text-muted-foreground">{trail.summary}</p>
+              <p className="line-clamp-2 text-sm text-muted-foreground">
+                {trail.shortDescription ?? trail.summary ?? ""}
+              </p>
 
+              {/* Footer actions */}
               <div className="flex items-center justify-between text-xs">
                 <div className="text-muted-foreground">
                   {trail.avgRating ? `⭐ ${trail.avgRating} (${trail.reviewCount})` : "No ratings yet"}
                 </div>
-                <span className="font-medium text-emerald-700 dark:text-emerald-400">
-                  View trail →
-                </span>
+
+                <div className="flex items-center gap-2">
+                  <PlanCTA trailId={trail.id} />
+                  <span className="font-medium text-emerald-700 dark:text-emerald-400">View →</span>
+                </div>
               </div>
             </div>
           </Link>

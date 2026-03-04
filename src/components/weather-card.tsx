@@ -22,12 +22,10 @@ function statusFromRainChance(rainPct: number | null) {
 export function WeatherCard({
   snapshot,
 }: {
-  snapshot:
-    | null
-    | {
-        fetchedAt: Date;
-        payload: any;
-      };
+  snapshot: null | {
+    fetchedAt: Date;
+    payload: any;
+  };
 }) {
   if (!snapshot) {
     return (
@@ -71,7 +69,9 @@ export function WeatherCard({
 
           <div className="rounded-xl border px-3 py-2 text-right">
             <div className="text-xs text-muted-foreground">Temperature</div>
-            <div className="text-lg font-semibold">{temp != null ? `${temp.toFixed(1)}°C` : "—"}</div>
+            <div className="text-lg font-semibold">
+              {temp != null ? `${temp.toFixed(1)}°C` : "—"}
+            </div>
           </div>
         </div>
 
@@ -79,7 +79,9 @@ export function WeatherCard({
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl border p-3">
             <div className="text-xs text-muted-foreground">Wind</div>
-            <div className="text-sm font-semibold">{wind != null ? `${wind.toFixed(0)} km/h` : "—"}</div>
+            <div className="text-sm font-semibold">
+              {wind != null ? `${wind.toFixed(0)} km/h` : "—"}
+            </div>
           </div>
 
           <div className="rounded-xl border p-3">

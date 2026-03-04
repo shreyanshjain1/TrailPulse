@@ -9,7 +9,14 @@ export async function POST(req: Request) {
   const { ip, ua } = getIpUa(req);
   try {
     const user = await requireAdminOrThrow({ ip, ua });
-    const rl = await rateLimit({ key: `jobsRetry:${user.id}`, max: 10, windowSec: 60, userId: user.id, ip, ua });
+    const rl = await rateLimit({
+      key: `jobsRetry:${user.id}`,
+      max: 10,
+      windowSec: 60,
+      userId: user.id,
+      ip,
+      ua,
+    });
     if (!rl.ok) return jsonError("Too many requests", 429, { retryAfterSec: rl.retryAfterSec });
 
     const body = await req.json();
@@ -21,7 +28,14 @@ export async function POST(req: Request) {
     if (!job) return jsonError("Job not found", 404);
 
     await job.retry();
-    await audit({ userId: user.id, action: "JOB_RUN", target: parsed.data.jobId, meta: { op: "retry", queue: parsed.data.queue }, ip, ua });
+    await audit({
+      userId: user.id,
+      action: "JOB_RUN",
+      target: parsed.data.jobId,
+      meta: { op: "retry", queue: parsed.data.queue },
+      ip,
+      ua,
+    });
 
     return jsonOk({ retried: true });
   } catch (e: any) {
