@@ -57,58 +57,72 @@ export default async function TrailsPage({
 
       {/* Grid */}
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {trails.map((trail) => (
-          <Link
-            key={trail.id}
-            href={`/trails/${trail.id}`}
-            className="group overflow-hidden rounded-2xl border bg-card transition hover:-translate-y-0.5 hover:shadow-lg"
-          >
-            <div className="relative h-44 w-full overflow-hidden">
-              <img
-                src={
-                  trail.imageUrl ||
-                  `https://source.unsplash.com/1200x800/?mountain,hiking,trail&sig=${trail.id}`
-                }
-                alt={trail.name}
-                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-              <div className="absolute bottom-3 left-3 right-3">
-                <h3 className="line-clamp-1 text-lg font-semibold text-white">{trail.name}</h3>
-                <p className="line-clamp-1 text-xs text-white/85">{trail.region}</p>
-              </div>
-            </div>
+        {trails.map((trail) => {
+          const detailHref = `/trails/${trail.id}`;
+          const img =
+            trail.imageUrl ||
+            `https://source.unsplash.com/1200x800/?mountain,hiking,trail&sig=${trail.id}`;
 
-            <div className="space-y-3 p-4">
-              <div className="flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full border px-2 py-0.5">{trail.difficulty}</span>
-                <span className="rounded-full border px-2 py-0.5">{trail.distanceKm} km</span>
-                <span className="rounded-full border px-2 py-0.5">{trail.elevationGainM} m gain</span>
-                {trail.distanceFromStartKm != null ? (
-                  <span className="rounded-full border bg-emerald-50 px-2 py-0.5 dark:bg-emerald-950/30">
-                    {trail.distanceFromStartKm.toFixed(1)} km away
+          return (
+            <div
+              key={trail.id}
+              className="group relative overflow-hidden rounded-2xl border bg-card transition hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              {/* clickable image/title area */}
+              <Link href={detailHref} className="block">
+                <div className="relative h-44 w-full overflow-hidden">
+                  <img
+                    src={img}
+                    alt={trail.name}
+                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <h3 className="line-clamp-1 text-lg font-semibold text-white">
+                      {trail.name}
+                    </h3>
+                    <p className="line-clamp-1 text-xs text-white/85">{trail.region}</p>
+                  </div>
+                </div>
+              </Link>
+
+              <div className="space-y-3 p-4">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="rounded-full border px-2 py-0.5">{trail.difficulty}</span>
+                  <span className="rounded-full border px-2 py-0.5">{trail.distanceKm} km</span>
+                  <span className="rounded-full border px-2 py-0.5">
+                    {trail.elevationGainM} m gain
                   </span>
-                ) : null}
-              </div>
+                  {trail.distanceFromStartKm != null ? (
+                    <span className="rounded-full border bg-emerald-50 px-2 py-0.5 dark:bg-emerald-950/30">
+                      {trail.distanceFromStartKm.toFixed(1)} km away
+                    </span>
+                  ) : null}
 
-              <p className="line-clamp-2 text-sm text-muted-foreground">
-                {trail.shortDescription ?? trail.summary ?? ""}
-              </p>
-
-              {/* Footer actions */}
-              <div className="flex items-center justify-between text-xs">
-                <div className="text-muted-foreground">
-                  {trail.avgRating ? `⭐ ${trail.avgRating} (${trail.reviewCount})` : "No ratings yet"}
+                  <div className="ml-auto">
+                    <PlanCTA trailId={trail.id} />
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <PlanCTA trailId={trail.id} />
-                  <span className="font-medium text-emerald-700 dark:text-emerald-400">View →</span>
+                <p className="line-clamp-2 text-sm text-muted-foreground">
+                  {trail.shortDescription ?? trail.summary}
+                </p>
+
+                <div className="flex items-center justify-between text-xs">
+                  <div className="text-muted-foreground">
+                    {trail.avgRating ? `⭐ ${trail.avgRating} (${trail.reviewCount})` : "No ratings yet"}
+                  </div>
+                  <Link
+                    href={detailHref}
+                    className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                  >
+                    View trail →
+                  </Link>
                 </div>
               </div>
             </div>
-          </Link>
-        ))}
+          );
+        })}
       </section>
     </div>
   );

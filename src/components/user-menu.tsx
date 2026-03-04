@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/src/components/ui/dropdown-menu";
 import { Button } from "@/src/components/ui/button";
-import { Bell, Bookmark, CalendarDays, LayoutDashboard, LogOut, UserCircle2 } from "lucide-react";
+import { UserCircle2, LogIn, LogOut, LayoutDashboard, Compass, Bookmark, CalendarDays } from "lucide-react";
 
 export function UserMenu({
   session,
@@ -22,9 +22,15 @@ export function UserMenu({
 }) {
   if (!session?.user) {
     return (
-      <Button onClick={() => signIn("google", { callbackUrl: "/dashboard" })}>
-        Sign in with Google
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button variant="outline" asChild className="hidden sm:inline-flex">
+          <Link href="/">Home</Link>
+        </Button>
+        <Button onClick={() => signIn("google", { callbackUrl: "/dashboard" })} className="gap-2">
+          <LogIn className="h-4 w-4" />
+          Sign in
+        </Button>
+      </div>
     );
   }
 
@@ -46,13 +52,6 @@ export function UserMenu({
 
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuItem asChild>
-          <Link href="/profile">
-            <UserCircle2 className="mr-2 h-4 w-4" />
-            Profile
-          </Link>
-        </DropdownMenuItem>
-
-        <DropdownMenuItem asChild>
           <Link href="/dashboard">
             <LayoutDashboard className="mr-2 h-4 w-4" />
             Dashboard
@@ -60,9 +59,16 @@ export function UserMenu({
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild>
+          <Link href="/trails">
+            <Compass className="mr-2 h-4 w-4" />
+            Trails
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
           <Link href="/saved">
             <Bookmark className="mr-2 h-4 w-4" />
-            Saved trails
+            Saved
           </Link>
         </DropdownMenuItem>
 
@@ -73,22 +79,10 @@ export function UserMenu({
           </Link>
         </DropdownMenuItem>
 
-        <DropdownMenuItem asChild>
-          <Link href="/notifications">
-            <Bell className="mr-2 h-4 w-4" />
-            Notifications
-            {unreadCount > 0 ? (
-              <span className="ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full bg-emerald-500 px-1.5 py-0.5 text-[11px] font-semibold text-white">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            ) : null}
-          </Link>
-        </DropdownMenuItem>
-
         <DropdownMenuSeparator />
 
         <DropdownMenuItem
-          onClick={() => signOut({ callbackUrl: "/signin" })}
+          onClick={() => signOut({ callbackUrl: "/" })}
           className="text-red-600 focus:text-red-600"
         >
           <LogOut className="mr-2 h-4 w-4" />

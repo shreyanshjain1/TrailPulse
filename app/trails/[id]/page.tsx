@@ -5,6 +5,9 @@ import { requireUser } from "@/src/server/authz";
 import { SaveTrailButton } from "@/src/components/save-trail-button";
 import { PlanHikeButton } from "@/src/components/plan-hike-button";
 import TrailMap from "@/src/components/trail-map";
+import { fetchWikimediaCategoryPhotos } from "@/src/server/trail-photos";
+import { TrailGallery } from "@/src/components/trail-gallery";
+import { OsmSyncButton } from "@/src/components/osm-sync-button";
 
 async function postReview(formData: FormData) {
   "use server";
@@ -61,7 +64,11 @@ function getDifficultyBadgeClasses(difficulty: string) {
   }
 }
 
-export default async function TrailDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TrailDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const user = await requireUser();
   if (!user) return null;
 
@@ -87,6 +94,12 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
 
   if (!trail) notFound();
 
+  // ✅ Fetch gallery photos (server-side) if photoCategory exists
+  const photos =
+    (trail as any).photoCategory
+      ? await fetchWikimediaCategoryPhotos(String((trail as any).photoCategory), 5)
+      : [];
+
   const avgRating =
     trail.reviews.length > 0
       ? (trail.reviews.reduce((sum, r) => sum + r.rating, 0) / trail.reviews.length).toFixed(1)
@@ -100,6 +113,7 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
 
   const heroImage =
     trail.imageUrl ||
+    (trail as any).coverImageUrl ||
     "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1600&auto=format&fit=crop";
 
   // Prisma JSON fields (safe-cast)
@@ -121,8 +135,8 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
             (idx === 0
               ? "Trailhead section. Set your pace and check your essentials before climbing."
               : idx === routeSections.length - 1
-                ? "Final section / viewpoint area. Terrain can be exposed and windy."
-                : "Intermediate section of the trail route."),
+              ? "Final section / viewpoint area. Terrain can be exposed and windy."
+              : "Intermediate section of the trail route."),
         }))
       : [
           {
@@ -172,6 +186,7 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
           <div className="absolute right-4 top-4 flex items-center gap-2">
             <SaveTrailButton trailId={trail.id} />
             <PlanHikeButton trailId={trail.id} trailName={trail.name} />
+            {user.role === "ADMIN" ? <OsmSyncButton trailId={trail.id} /> : null}
           </div>
 
           <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6">
@@ -202,9 +217,7 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
             <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-white/85">
               <span className="rounded-full bg-white/10 px-2.5 py-1">
                 {avgRating
-                  ? `⭐ ${avgRating} (${trail.reviews.length} review${
-                      trail.reviews.length > 1 ? "s" : ""
-                    })`
+                  ? `⭐ ${avgRating} (${trail.reviews.length} review${trail.reviews.length > 1 ? "s" : ""})`
                   : "No ratings yet"}
               </span>
               <span className="rounded-full bg-white/10 px-2.5 py-1">
@@ -213,6 +226,11 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
               {hasRouteLine ? (
                 <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 text-emerald-100">
                   Route line available
+                </span>
+              ) : null}
+              {photos.length > 0 ? (
+                <span className="rounded-full bg-white/10 px-2.5 py-1">
+                  {photos.length} gallery photos
                 </span>
               ) : null}
             </div>
@@ -225,13 +243,9 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
         {/* LEFT */}
         <div className="space-y-6 lg:col-span-8">
           <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">Trail breakdown</h2>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  What to expect on this route
-                </p>
-              </div>
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Trail breakdown</h2>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">What to expect on this route</p>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
@@ -271,16 +285,32 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
             <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
               {hasRouteLine ? (
                 <>
-                  Showing seeded route polyline + section markers. Next upgrade: import real
-                  GPX/GeoJSON per trail from official hiking sources / community tracks.
+                  Showing seeded route polyline + section markers. Next upgrade: import real GPX/GeoJSON
+                  per trail from official hiking sources / community tracks.
                 </>
               ) : (
-                <>
-                  No route line yet for this trail. The map is still centered to the trail
-                  coordinates.
-                </>
+                <>No route line yet for this trail. The map is still centered to the trail coordinates.</>
               )}
             </div>
+          </section>
+
+          {/* ✅ Gallery section */}
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Gallery</h2>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Photos fetched from Wikimedia Commons (tap to view + see credits).
+              </p>
+            </div>
+
+            <TrailGallery photos={photos} />
+
+            {photos.length === 0 ? (
+              <div className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+                Tip: set <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-950">photoCategory</code> on this
+                trail (Wikimedia Commons category name) to enable the gallery.
+              </div>
+            ) : null}
           </section>
 
           <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -330,10 +360,7 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
                 </div>
               ) : (
                 trail.reviews.map((r) => (
-                  <div
-                    key={r.id}
-                    className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
-                  >
+                  <div key={r.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         {r.user.image ? (
@@ -403,9 +430,7 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
                 </div>
 
                 <details className="mt-4 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
-                  <summary className="cursor-pointer text-sm font-medium">
-                    View raw weather snapshot
-                  </summary>
+                  <summary className="cursor-pointer text-sm font-medium">View raw weather snapshot</summary>
                   <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-zinc-100 p-2 text-xs dark:bg-zinc-950">
                     {JSON.stringify(latest, null, 2)}
                   </pre>
@@ -413,8 +438,7 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
               </>
             ) : (
               <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                No weather snapshot yet. Save or plan this trail, then run the worker to fetch
-                weather.
+                No weather snapshot yet. Save or plan this trail, then run the worker to fetch weather.
               </p>
             )}
           </section>
@@ -423,49 +447,12 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
             <h2 className="text-lg font-semibold">Hike checklist</h2>
             <ul className="mt-3 space-y-2">
               {checklist.map((item) => (
-                <li
-                  key={item}
-                  className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300"
-                >
+                <li key={item} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   {item}
                 </li>
               ))}
             </ul>
-          </section>
-
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <h2 className="text-lg font-semibold">Route sections</h2>
-
-            {routeSections.length === 0 ? (
-              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                No route section labels yet.
-              </p>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {routeSections.map((s, idx) => (
-                  <div
-                    key={s.id ?? `${s.label}-${idx}`}
-                    className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium">{s.label}</div>
-                      {s.type ? (
-                        <span className="rounded-full px-2 py-0.5 text-xs capitalize bg-zinc-200/70 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                          {s.type}
-                        </span>
-                      ) : null}
-                    </div>
-                    {s.note ? (
-                      <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{s.note}</div>
-                    ) : null}
-                    <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                      {s.lat.toFixed(5)}, {s.lng.toFixed(5)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </section>
 
           <section className="rounded-2xl border border-zinc-200 bg-gradient-to-br from-emerald-50 to-cyan-50 p-5 shadow-sm dark:border-zinc-800 dark:from-emerald-950/20 dark:to-cyan-950/10">
@@ -477,11 +464,7 @@ export default async function TrailDetailPage({ params }: { params: Promise<{ id
               </div>
               <div className="flex items-center justify-between rounded-lg border border-white/60 bg-white/70 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/50">
                 <span className="text-zinc-500">Difficulty</span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${getDifficultyBadgeClasses(
-                    trail.difficulty,
-                  )}`}
-                >
+                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${getDifficultyBadgeClasses(trail.difficulty)}`}>
                   {trail.difficulty}
                 </span>
               </div>

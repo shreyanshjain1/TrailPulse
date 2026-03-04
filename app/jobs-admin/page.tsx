@@ -1,70 +1,76 @@
-import { auth } from "@/src/auth";
 import { redirect } from "next/navigation";
+import { auth } from "@/src/auth";
 import { prisma } from "@/src/server/prisma";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/src/components/ui/card";
-import { JobsAdminTable } from "@/src/components/jobs-admin-table";
-import { weatherSyncQueue, digestQueue } from "@/src/server/queues";
 
 export default async function JobsAdminPage() {
   const session = await auth();
-  if (!session?.user) redirect("/signin");
-  if (session.user.role !== "ADMIN") redirect("/dashboard");
+  if (!session?.user?.id) redirect("/signin");
+
+  // Optional: only admin can see this
+  // if (session.user.role !== "ADMIN") redirect("/dashboard");
 
   const runs = await prisma.jobRun.findMany({
     orderBy: { createdAt: "desc" },
-    take: 100,
+    take: 80,
   });
-
-  const [weatherCounts, digestCounts] = await Promise.all([
-    weatherSyncQueue.getJobCounts("waiting", "active", "failed", "completed", "delayed"),
-    digestQueue.getJobCounts("waiting", "active", "failed", "completed", "delayed"),
-  ]);
 
   return (
     <div className="space-y-6">
-      <div>
+      <section className="rounded-3xl border bg-gradient-to-r from-emerald-100/70 via-cyan-50 to-sky-50 p-6 dark:from-emerald-950/20 dark:via-cyan-950/10 dark:to-sky-950/10">
         <h1 className="text-2xl font-semibold tracking-tight">Jobs Admin</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          BullMQ visibility + retry controls.
+        <p className="text-sm text-muted-foreground">
+          Recent worker runs (success/fail) with attempts and errors.
         </p>
-      </div>
+      </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>weatherSync</CardTitle>
-            <CardDescription>Trail conditions refresh</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm">
-            <pre className="whitespace-pre-wrap">{JSON.stringify(weatherCounts, null, 2)}</pre>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>digest</CardTitle>
-            <CardDescription>Daily recommendations</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm">
-            <pre className="whitespace-pre-wrap">{JSON.stringify(digestCounts, null, 2)}</pre>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent runs</CardTitle>
-          <CardDescription>From DB (worker writes JobRun rows)</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <JobsAdminTable initial={runs} />
-        </CardContent>
-      </Card>
+      <section className="rounded-2xl border bg-card p-5">
+        {runs.length === 0 ? (
+          <div className="text-sm text-muted-foreground">No job runs yet.</div>
+        ) : (
+          <div className="overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="py-2 pr-4">Time</th>
+                  <th className="py-2 pr-4">Queue</th>
+                  <th className="py-2 pr-4">Name</th>
+                  <th className="py-2 pr-4">Status</th>
+                  <th className="py-2 pr-4">Attempts</th>
+                  <th className="py-2 pr-4">Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {runs.map((r) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      {new Date(r.createdAt).toLocaleString()}
+                    </td>
+                    <td className="py-2 pr-4">{r.queue}</td>
+                    <td className="py-2 pr-4">{r.name}</td>
+                    <td className="py-2 pr-4">
+                      <span
+                        className={
+                          r.status === "failed"
+                            ? "rounded-full bg-rose-500/15 px-2 py-1 text-xs font-semibold text-rose-700 dark:text-rose-300"
+                            : "rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
+                        }
+                      >
+                        {r.status}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-4">{r.attempts}</td>
+                    <td className="py-2 pr-4">
+                      <div className="max-w-[560px] truncate text-xs text-muted-foreground">
+                        {r.error ?? ""}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -109,6 +109,8 @@ model Trail {
   lng              Float
   shortDescription String
   imageUrl         String?
+  coverImageUrl    String?
+  photoCategory    String?   // Wikimedia Commons category name (e.g., "Mount_Pulag")
 
   // NEW: route line + labeled sections
   routeGeoJson     Json?
