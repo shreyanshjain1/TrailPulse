@@ -1,61 +1,94 @@
-# TrailPulse (Next.js + TypeScript)
+# TrailPulse 🥾🌿
+**Hike • Plan • Sync** — A modern hiking trail discovery + planning app with Google OAuth, Google Calendar sync, and background jobs.
 
-Trail discovery + hike planning with Google OAuth, Google Calendar event creation, and BullMQ background jobs for weather sync + weekly digest notifications.
-
-## Tech
-
-- Next.js (App Router) + TypeScript
-- Auth.js / NextAuth v5 (Google OAuth)
-- Prisma ORM + PostgreSQL
-- Redis + BullMQ (worker + repeatable jobs)
-- Tailwind + shadcn/ui-style components
-- Zod validation (server-side)
-- Layered security: object-level authz, rate limits, security headers, audit logs
+TrailPulse is built like a real production app: **secure auth**, **object-level authorization**, **rate-limited APIs**, **audit logs**, **jobs monitoring**, and “product” features like weather snapshots + weekly picks.
 
 ---
 
-## 1) Prereqs
+## ✨ Highlights
 
-- Node.js 18+ (Node 20+ recommended)
+- ✅ Google OAuth login (Auth.js / NextAuth v5)
+- ✅ Trail discovery (seeded dataset, filters + search)
+- ✅ Save trails + plan hikes (notes + checklist)
+- ✅ Google Calendar event creation for planned hikes
+- ✅ Background jobs (BullMQ) for:
+  - Weather sync (Open-Meteo)
+  - Digest notifications (weekly picks)
+  - Plan reminders (24h / 3h / 30m) *(if enabled in your worker build)*
+- ✅ In-app notifications + activity/audit logging
+- ✅ Admin Jobs Dashboard (job runs, failures, retries)
+- ✅ Premium UI with Tailwind + shadcn/ui-style components
+- ✅ Light/Dark mode
+
+---
+
+## 📸 Screenshots
+
+| Page | Light | Dark |
+|------|------|------|
+| Dashboard | ![Dashboard Light](public/screenshots/dashboard-light.jpg) | ![Dashboard Dark](public/screenshots/dashboard-dark.jpg) |
+| Trails | ![Trails Light](public/screenshots/trails-light.jpg) | ![Trails Dark](public/screenshots/trails-dark.jpg) |
+| Trail Detail | ![Trail Light](public/screenshots/trail-light.jpg) | ![Trail Dark](public/screenshots/trail-dark.jpg) |
+| Profile | ![Profile Light](public/screenshots/profile-light.jpg) | ![Profile Dark](public/screenshots/profile-dark.jpg) |
+
+## 🧱 Tech Stack
+
+- **Next.js 15** (App Router) + **TypeScript**
+- **Auth.js / NextAuth v5** (Google OAuth)
+- **Prisma ORM** + **PostgreSQL**
+- **Redis + BullMQ** (background jobs)
+- **TailwindCSS** + shadcn/ui-style components
+- **Zod** validation
+- **Security headers** via middleware
+
+---
+
+## ✅ Prerequisites
+
+- Node.js **18+** (Node 20+ recommended)
 - pnpm (recommended) or npm/yarn
-- Docker Desktop (for Postgres + Redis)
+- Docker Desktop (Postgres + Redis)
 - Google Cloud project with OAuth credentials
 
 ---
 
-## 2) Create Google OAuth credentials
+## 🔐 Google OAuth Setup
 
-1. Go to Google Cloud Console → APIs & Services → Credentials
-2. Create **OAuth Client ID** (Application type: Web application)
-3. Add **Authorized JavaScript origins**:
+Google Cloud Console → **APIs & Services → Credentials**
+
+1. Create **OAuth Client ID** → Application type: **Web application**
+2. Add **Authorized JavaScript origins**:
    - `http://localhost:3000`
-4. Add **Authorized redirect URIs**:
+3. Add **Authorized redirect URIs**:
    - `http://localhost:3000/api/auth/callback/google`
-5. Save `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+4. Copy:
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
 
-**Scopes used**
-
+### Scopes used
 - `openid email profile`
-- `https://www.googleapis.com/auth/calendar.events` (for creating calendar events)
+- `https://www.googleapis.com/auth/calendar.events` *(create calendar events)*
 
 ---
 
-## 3) Configure env vars
+## ⚙️ Environment Variables
 
 ```bash
 cp .env.example .env
 ```
 
-Fill:
-
-- `NEXTAUTH_SECRET`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- (optional) `ADMIN_EMAILS=your.email@domain.com`
+Fill at minimum:
+- `NEXTAUTH_URL=http://localhost:3000`
+- `NEXTAUTH_SECRET=...`
+- `DATABASE_URL=postgresql://...`
+- `REDIS_URL=redis://...`
+- `GOOGLE_CLIENT_ID=...`
+- `GOOGLE_CLIENT_SECRET=...`
+- `ADMIN_EMAILS=your.email@gmail.com` *(optional admin access)*
 
 ---
 
-## 4) Start Postgres + Redis
+## 🐳 Start Postgres + Redis
 
 ```bash
 docker compose up -d
@@ -63,7 +96,7 @@ docker compose up -d
 
 ---
 
-## 5) Install deps
+## 📦 Install Dependencies
 
 ```bash
 pnpm i
@@ -71,7 +104,9 @@ pnpm i
 
 ---
 
-## 6) Prisma migrate + seed (30+ trails)
+## 🗄️ Prisma: migrate + seed (30+ trails)
+
+These match your `package.json` scripts:
 
 ```bash
 pnpm prisma:generate
@@ -81,117 +116,115 @@ pnpm prisma:seed
 
 ---
 
-## 7) Run web + worker (2 terminals)
+## ▶️ Run the app
 
-Terminal A:
-
+### Terminal A (web)
 ```bash
 pnpm dev
 ```
 
-Terminal B:
-
+### Terminal B (worker)
 ```bash
 pnpm worker:dev
 ```
 
-Or run both together:
-
+### Run both together
 ```bash
 pnpm all:dev
 ```
 
 Open:
-
-- Web app: `http://localhost:3000`
-- Sign in: `/signin`
-- Trails: `/trails`
-- Jobs Admin (ADMIN only): `/jobs-admin`
+- Web: `http://localhost:3000`
+- Sign in: `http://localhost:3000/signin`
+- Trails: `http://localhost:3000/trails`
+- Dashboard: `http://localhost:3000/dashboard`
+- Profile: `http://localhost:3000/profile`
+- Jobs Admin (ADMIN only): `http://localhost:3000/jobs-admin`
 
 ---
 
-## 8) What the jobs do
+## 🧠 What the background jobs do
 
-### weatherSync (repeatable)
-
+### `weatherSync` (repeatable)
 - Runs every `WEATHER_SYNC_EVERY_HOURS`
-- Finds trails that any user saved or planned recently
-- Fetches conditions (Open-Meteo) and stores snapshots in `WeatherSnapshot`
+- Finds trails saved/planned by any user
+- Fetches conditions via Open-Meteo
+- Stores snapshots into `WeatherSnapshot`
 
-### digest (repeatable)
+### `digest` (repeatable)
+- Runs daily at `DIGEST_HOUR_LOCAL`
+- Writes a “Weekly picks” notification per user
 
-- Runs daily at `DIGEST_HOUR_LOCAL` (Asia/Manila)
-- Creates a personalized "Weekly trail picks" notification for each user with some activity
+### `planReminders` (repeatable) *(if enabled)*
+- Runs on a schedule (e.g., every 15 minutes)
+- Sends reminders:
+  - 24 hours before
+  - 3 hours before
+  - 30 minutes before
+- Writes into `Notification` table
 
 ---
 
-## 9) Security notes (what’s implemented)
+## 🔒 Security (what’s implemented)
 
 - **Server-side validation**: Zod on every write endpoint
-- **Object-level authorization**: users can only access their own plans/notifications; enforced server-side
-- **Session strategy**: database sessions (HttpOnly cookies by Auth.js / NextAuth)
-- **CSRF**: Auth.js default protections for auth routes + same-site cookies
-- **Rate limiting** (Redis sliding-window):
-  - `/api/plans` (plan creation)
-  - `/api/trails/save`
-  - `/api/calendar/create`
-  - `/api/notifications/read`
-  - `/api/jobs/retry` (admin)
-- **Safe output**: no secrets returned; JSON responses are minimal
-- **Security headers** (middleware):
+- **Object-level authorization**: users can only access their own plans/notifications/etc.
+- **Secure sessions**: DB sessions + HttpOnly cookies (Auth.js defaults)
+- **CSRF**: Auth.js default protections + same-site cookies
+- **Rate limiting (Redis)** on spammy endpoints:
+  - Plans create
+  - Save trail
+  - Calendar create
+  - Notifications read
+  - Jobs retry (admin)
+- **Audit logs**:
+  - auth events
+  - authorization denials
+  - job runs
+- **Security headers** in middleware:
   - CSP starter
   - nosniff
-  - frame-ancestors none / DENY
-  - referrer-policy
-  - basic permissions policy
+  - frame protection
+  - referrer policy
+  - permissions policy
 
 ---
 
-## 10) Verification checklist
+## ✅ Verification Checklist
 
-### Cookie flags / session behavior
-
-- Sign in with Google.
-- In DevTools → Application → Cookies:
-  - Ensure session cookies are **HttpOnly**
-  - `SameSite` should be **Lax**
-  - `Secure` should be enabled in production HTTPS
+### Cookies & sessions
+- Sign in with Google
+- DevTools → Application → Cookies:
+  - session cookies should be **HttpOnly**
+  - `SameSite=Lax`
+  - `Secure=true` in production (HTTPS)
 
 ### Authz denial tests
+- Open another user’s plan ID: should return **404**
+- Calendar create with wrong planId: should return **403**
 
-- Open a plan URL that isn’t yours:
-  - `/plans/{someOtherPlanId}` should return 404
-- Try to call calendar creation with someone else’s planId:
-  - `POST /api/calendar/create` should return **403**
+### Rate limiting
+- Rapidly spam plan creation: expect **429 Too many requests**
+- Spam calendar creation: expect **429**
 
-### Rate limiting checks
+### Headers
+- DevTools → Network → Response headers include:
+  - `Content-Security-Policy`
+  - `X-Content-Type-Options: nosniff`
+  - `X-Frame-Options: DENY`
+  - `Referrer-Policy`
 
-- Spam `POST /api/plans` quickly (10+ in a minute):
-  - Expect **429 Too many requests**
-- Spam calendar creation:
-  - Expect **429**
-
-### Headers verification
-
-- In DevTools → Network:
-  - Check any page response headers include:
-    - `Content-Security-Policy`
-    - `X-Content-Type-Options: nosniff`
-    - `X-Frame-Options: DENY`
-    - `Referrer-Policy`
-
-### Jobs Admin checks
-
-- Add your email to `ADMIN_EMAILS`, sign out, sign in again.
-- Visit `/jobs-admin`.
-- Observe:
-  - Queue counts (waiting/active/failed/completed)
-  - Recent runs (from DB)
-  - Retry button appears on failed runs
+### Jobs Admin
+- Add your email to `ADMIN_EMAILS`, sign out/in again
+- Visit `/jobs-admin`
+- Confirm:
+  - queue counts show
+  - recent JobRun entries show
+  - retry button appears for failed jobs
 
 ---
 
-## 11) Optional: tests
+## 🧪 Tests (optional)
 
 ```bash
 pnpm test
@@ -199,10 +232,20 @@ pnpm test
 
 ---
 
-## Repo structure (high level)
+## 📁 Repo Structure
 
-- `app/` Next.js App Router pages + API route handlers
-- `src/server/` Prisma/Redis/authz/rate-limit + Google Calendar integration
-- `src/worker/` BullMQ worker + repeatable jobs
-- `prisma/` schema, migrations, seed
-- `docker-compose.yml` Postgres + Redis
+- `app/` — Next.js App Router pages + API route handlers
+- `src/server/` — Prisma/Redis/authz/rate-limit + integrations (Calendar, OSM, Wikimedia)
+- `src/worker/` — BullMQ worker + repeatable jobs
+- `prisma/` — schema, migrations, seed
+- `docker-compose.yml` — Postgres + Redis
+
+---
+
+## 🚀 Roadmap (flagship upgrades)
+
+- Real route imports (GPX upload / bulk OSM Overpass sync)
+- Trail comparisons (2–3 trails side-by-side)
+- Plan share links (tokenized, public read-only)
+- PWA offline packing mode
+- Better observability (health endpoint, structured logs)
