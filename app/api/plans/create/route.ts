@@ -5,6 +5,8 @@ import { rateLimit } from "@/src/server/rateLimit";
 import { audit } from "@/src/server/audit";
 import { z } from "zod";
 
+export { POST } from "../route";
+
 const schema = z.object({
   trailId: z.string().min(1),
   startAt: z.string().datetime(),

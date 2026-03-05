@@ -40,6 +40,7 @@ function estimateDurationMinutes(distanceKm: number, elevationGainM: number, dif
 
   const hours = (baseHours + ascentHours) * mod;
   const mins = Math.ceil(hours * 60);
+
   return clamp(roundTo(mins, 5), 30, 24 * 60);
 }
 
@@ -56,7 +57,13 @@ function snacksEstimate(durationMin: number) {
   return snacks;
 }
 
-const templates: Record<TemplateKey, { name: string; items: string[] }> = {
+const templates: Record<
+  TemplateKey,
+  {
+    name: string;
+    items: string[];
+  }
+> = {
   day: {
     name: "Day Hike",
     items: [
@@ -70,25 +77,11 @@ const templates: Record<TemplateKey, { name: string; items: string[] }> = {
   },
   rainy: {
     name: "Rainy / Windy",
-    items: [
-      "Rain jacket / poncho",
-      "Dry bag / waterproof pouch",
-      "Extra socks",
-      "Headlamp / flashlight",
-      "Towel / wipes",
-      "Warm layer",
-    ],
+    items: ["Rain jacket / poncho", "Dry bag / waterproof pouch", "Extra socks", "Headlamp / flashlight", "Towel / wipes", "Warm layer"],
   },
   long: {
     name: "Long Hike",
-    items: [
-      "3L water capacity",
-      "Extra snacks (energy bars)",
-      "Electrolytes",
-      "Emergency blanket",
-      "Whistle",
-      "Extra battery / power bank",
-    ],
+    items: ["3L water capacity", "Extra snacks (energy bars)", "Electrolytes", "Emergency blanket", "Whistle", "Extra battery / power bank"],
   },
 };
 
@@ -98,11 +91,10 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
     const d = new Date();
     d.setDate(d.getDate() + 1);
     d.setHours(7, 0, 0, 0);
+
     // datetime-local expects "YYYY-MM-DDTHH:mm"
     const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-      d.getHours(),
-    )}:${pad(d.getMinutes())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   });
 
   const suggestedDuration = useMemo(
@@ -110,25 +102,19 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
     [trail.distanceKm, trail.elevationGainM, trail.difficulty],
   );
 
-  const [durationMin, setDurationMin] = useState<number>(suggestedDuration);
-  const [notes, setNotes] = useState<string>("");
-  const [heatFactor, setHeatFactor] = useState<number>(1.0); // 1.0 normal, 1.2 hot, 0.9 cool
+  const [durationMin, setDurationMin] = useState(suggestedDuration);
+  const [notes, setNotes] = useState("");
+  const [heatFactor, setHeatFactor] = useState(1.0); // 1.0 normal, 1.2 hot, 0.9 cool
   const [templateKey, setTemplateKey] = useState<TemplateKey>("day");
-
   const [extraItems, setExtraItems] = useState<string[]>([]);
   const [newItem, setNewItem] = useState("");
 
-  const water = useMemo(
-    () => waterLiters(trail.distanceKm, durationMin, heatFactor),
-    [trail.distanceKm, durationMin, heatFactor],
-  );
-
+  const water = useMemo(() => waterLiters(trail.distanceKm, durationMin, heatFactor), [trail.distanceKm, durationMin, heatFactor]);
   const snacks = useMemo(() => snacksEstimate(durationMin), [durationMin]);
 
   const checklist = useMemo(() => {
     const base = templates[templateKey].items;
     const extra = extraItems.filter((x) => x.trim().length > 0);
-    // de-dupe
     const uniq = Array.from(new Set([...base, ...extra]));
     return uniq;
   }, [templateKey, extraItems]);
@@ -149,14 +135,16 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
         checklist,
       };
 
-      const res = await fetch("/api/plans/create", {
+      // ✅ Canonical endpoint (also queues weather sync)
+      const res = await fetch("/api/plans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok || !json?.ok) {
         toast.error(json?.error ?? "Failed to create plan");
         return;
       }
@@ -169,6 +157,7 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
           },
         },
       });
+
       setTimeout(() => {
         window.location.href = `/plans/${json.planId}`;
       }, 700);
@@ -188,101 +177,85 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
     <div className="grid gap-6 lg:grid-cols-12">
       {/* Left */}
       <section className="rounded-2xl border bg-card p-5 lg:col-span-7">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold">Plan builder</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Tune time + duration, then generate a practical checklist.
-            </p>
-          </div>
+        <h1 className="text-xl font-semibold">Plan builder</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Tune time + duration, then generate a practical checklist.</p>
 
-          <Badge variant="secondary">{trail.difficulty}</Badge>
-        </div>
-
-        <div className="mt-4 rounded-2xl border overflow-hidden">
-          <div className="relative h-44 w-full">
-            <img
-              src={
-                trail.imageUrl ||
-                "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1200&auto=format&fit=crop"
-              }
-              alt={trail.name}
-              className="h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-            <div className="absolute bottom-3 left-3 right-3 text-white">
-              <div className="text-lg font-semibold line-clamp-1">{trail.name}</div>
-              <div className="text-xs text-white/85">
+        <div className="mt-4 rounded-2xl border bg-muted/30 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Trail</div>
+              <div className="mt-1 text-base font-semibold">{trail.name}</div>
+              <div className="mt-1 text-sm text-muted-foreground">
                 {trail.region} • {trail.distanceKm} km • {trail.elevationGainM} m gain
               </div>
+              <div className="mt-2 text-sm text-muted-foreground">{trail.shortDescription}</div>
             </div>
+            <Badge variant="secondary" className="shrink-0">
+              {trail.difficulty}
+            </Badge>
           </div>
-          <div className="p-4 text-sm text-muted-foreground">{trail.shortDescription}</div>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
+        <div className="mt-5 grid gap-4">
+          <div>
             <div className="text-sm font-semibold">Start date/time</div>
-            <input
-              type="datetime-local"
-              value={startAtLocal}
-              onChange={(e) => setStartAtLocal(e.target.value)}
-              className="w-full rounded-xl border bg-background px-3 py-2 text-sm"
-            />
-            <div className="text-xs text-muted-foreground">
-              Tip: Pick early start for heat + safety.
+            <div className="mt-2">
+              <input
+                type="datetime-local"
+                value={startAtLocal}
+                onChange={(e) => setStartAtLocal(e.target.value)}
+                className="w-full rounded-xl border bg-background px-3 py-2 text-sm"
+              />
             </div>
+            <div className="mt-2 text-xs text-muted-foreground">Tip: Pick early start for heat + safety.</div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2">
               <div className="text-sm font-semibold">Duration</div>
-              <div className="text-xs text-muted-foreground">
-                Suggested: {suggestedDuration} min
+              <div className="text-xs text-muted-foreground">Suggested: {suggestedDuration} min</div>
+            </div>
+            <div className="mt-3">
+              <input
+                type="range"
+                min={30}
+                max={12 * 60}
+                step={5}
+                value={durationMin}
+                onChange={(e) => setDurationMin(Number(e.target.value))}
+                className="w-full"
+              />
+              <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                <span>30m</span>
+                <span className="font-medium text-foreground">{durationMin} min</span>
+                <span>12h</span>
               </div>
             </div>
-
-            <input
-              type="range"
-              min={30}
-              max={12 * 60}
-              step={5}
-              value={durationMin}
-              onChange={(e) => setDurationMin(Number(e.target.value))}
-              className="w-full"
-            />
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>30m</span>
-              <span className="font-semibold text-zinc-900 dark:text-zinc-50">
-                {durationMin} min
-              </span>
-              <span>12h</span>
-            </div>
           </div>
 
-          <div className="space-y-2">
+          <div>
             <div className="text-sm font-semibold">Conditions (heat)</div>
-            <select
-              value={String(heatFactor)}
-              onChange={(e) => setHeatFactor(Number(e.target.value))}
-              className="w-full rounded-xl border bg-background px-3 py-2 text-sm"
-            >
-              <option value="0.9">Cool</option>
-              <option value="1.0">Normal</option>
-              <option value="1.2">Hot</option>
-            </select>
-            <div className="text-xs text-muted-foreground">
-              Used for water estimate (rule of thumb).
+            <div className="mt-2">
+              <select
+                value={heatFactor}
+                onChange={(e) => setHeatFactor(Number(e.target.value))}
+                className="w-full rounded-xl border bg-background px-3 py-2 text-sm"
+              >
+                <option value={0.9}>Cool</option>
+                <option value={1.0}>Normal</option>
+                <option value={1.2}>Hot</option>
+              </select>
             </div>
+            <div className="mt-2 text-xs text-muted-foreground">Used for water estimate (rule of thumb).</div>
           </div>
 
-          <div className="space-y-2">
+          <div>
             <div className="text-sm font-semibold">Notes</div>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Group size, meetup point, reminders..."
-              className="min-h-[96px] w-full rounded-xl border bg-background px-3 py-2 text-sm"
+              className="mt-2 min-h-[96px] w-full rounded-xl border bg-background px-3 py-2 text-sm"
             />
           </div>
         </div>
@@ -306,8 +279,7 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
             </div>
           </div>
           <div className="mt-2 text-xs text-muted-foreground">
-            These are simple heuristics for planning — adjust based on your actual fitness + trail
-            conditions.
+            These are simple heuristics for planning — adjust based on your actual fitness + trail conditions.
           </div>
         </div>
 
@@ -323,9 +295,7 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Checklist</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Pick a template, add extras, then save with your plan.
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">Pick a template, add extras, then save with your plan.</p>
           </div>
           <Badge variant="secondary">{templates[templateKey].name}</Badge>
         </div>
@@ -339,9 +309,7 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
                 onClick={() => setTemplateKey(k)}
                 className={[
                   "rounded-xl border px-3 py-2 text-sm font-medium transition",
-                  templateKey === k
-                    ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
-                    : "bg-background hover:bg-muted/50",
+                  templateKey === k ? "bg-zinc-900 text-white dark:bg-white dark:text-black" : "bg-background hover:bg-muted/50",
                 ].join(" ")}
               >
                 {templates[k].name}
@@ -374,7 +342,6 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
             <div className="text-sm font-semibold">Items</div>
             <div className="text-xs text-muted-foreground">{checklist.length} items</div>
           </div>
-
           <ul className="mt-3 space-y-2">
             {checklist.map((item) => (
               <li key={item} className="flex items-start gap-2 text-sm">
@@ -388,8 +355,7 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
         <div className="mt-5 rounded-2xl border bg-emerald-50 p-4 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
           <div className="font-semibold">Ready-to-go tip</div>
           <div className="mt-1 text-xs">
-            After creating your plan, TrailPulse will show a readiness score (checklist progress +
-            weather freshness + calendar sync).
+            After creating your plan, TrailPulse will show a readiness score (checklist progress + weather freshness + calendar sync).
           </div>
         </div>
       </section>
