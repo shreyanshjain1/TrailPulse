@@ -26,10 +26,6 @@ function roundTo(n: number, step: number) {
   return Math.round(n / step) * step;
 }
 
-// A simple, explainable hiking heuristic (Naismith-ish):
-// - Base speed: 4 km/h on flat
-// - Add 1 hour per 600m ascent
-// - Difficulty modifier
 function estimateDurationMinutes(distanceKm: number, elevationGainM: number, difficulty: string) {
   const baseHours = distanceKm / 4;
   const ascentHours = elevationGainM / 600;
@@ -45,14 +41,12 @@ function estimateDurationMinutes(distanceKm: number, elevationGainM: number, dif
 }
 
 function waterLiters(distanceKm: number, durationMin: number, hotFactor: number) {
-  // rule-of-thumb: 0.5L per hour + 0.2L per 5km, scaled by heat
   const hours = durationMin / 60;
   const liters = (0.5 * hours + 0.2 * (distanceKm / 5)) * hotFactor;
   return clamp(Number(liters.toFixed(1)), 0.5, 6);
 }
 
 function snacksEstimate(durationMin: number) {
-  // rule-of-thumb: 1 snack per 60–90 min
   const snacks = Math.max(1, Math.round(durationMin / 75));
   return snacks;
 }
@@ -66,14 +60,7 @@ const templates: Record<
 > = {
   day: {
     name: "Day Hike",
-    items: [
-      "Water (1–2L minimum)",
-      "Trail shoes / grip",
-      "Cap + sunscreen",
-      "Small first aid kit",
-      "Power bank",
-      "Snacks / light meal",
-    ],
+    items: ["Water (1–2L minimum)", "Trail shoes / grip", "Cap + sunscreen", "Small first aid kit", "Power bank", "Snacks / light meal"],
   },
   rainy: {
     name: "Rainy / Windy",
@@ -87,12 +74,10 @@ const templates: Record<
 
 export function PlanBuilderForm({ trail }: { trail: Trail }) {
   const [startAtLocal, setStartAtLocal] = useState(() => {
-    // default: tomorrow 7:00 AM local
     const d = new Date();
     d.setDate(d.getDate() + 1);
     d.setHours(7, 0, 0, 0);
 
-    // datetime-local expects "YYYY-MM-DDTHH:mm"
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   });
@@ -104,7 +89,7 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
 
   const [durationMin, setDurationMin] = useState(suggestedDuration);
   const [notes, setNotes] = useState("");
-  const [heatFactor, setHeatFactor] = useState(1.0); // 1.0 normal, 1.2 hot, 0.9 cool
+  const [heatFactor, setHeatFactor] = useState(1.0);
   const [templateKey, setTemplateKey] = useState<TemplateKey>("day");
   const [extraItems, setExtraItems] = useState<string[]>([]);
   const [newItem, setNewItem] = useState("");
@@ -131,11 +116,11 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
         trailId: trail.id,
         startAt: start.toISOString(),
         durationMin,
-        notes: notes.trim() ? notes.trim() : null,
-        checklist,
+        notes: notes.trim() ? notes.trim() : "",
+        // ✅ match createPlanSchema: array of objects
+        checklist: checklist.map((text, i) => ({ text, sortOrder: i })),
       };
 
-      // ✅ Canonical endpoint (also queues weather sync)
       const res = await fetch("/api/plans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -175,7 +160,6 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-12">
-      {/* Left */}
       <section className="rounded-2xl border bg-card p-5 lg:col-span-7">
         <h1 className="text-xl font-semibold">Plan builder</h1>
         <p className="mt-1 text-sm text-muted-foreground">Tune time + duration, then generate a practical checklist.</p>
@@ -278,9 +262,7 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
               </div>
             </div>
           </div>
-          <div className="mt-2 text-xs text-muted-foreground">
-            These are simple heuristics for planning — adjust based on your actual fitness + trail conditions.
-          </div>
+          <div className="mt-2 text-xs text-muted-foreground">These are simple heuristics — adjust based on fitness + trail conditions.</div>
         </div>
 
         <div className="mt-5 flex items-center justify-end gap-2">
@@ -290,7 +272,6 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
         </div>
       </section>
 
-      {/* Right */}
       <section className="rounded-2xl border bg-card p-5 lg:col-span-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -354,9 +335,7 @@ export function PlanBuilderForm({ trail }: { trail: Trail }) {
 
         <div className="mt-5 rounded-2xl border bg-emerald-50 p-4 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
           <div className="font-semibold">Ready-to-go tip</div>
-          <div className="mt-1 text-xs">
-            After creating your plan, TrailPulse will show a readiness score (checklist progress + weather freshness + calendar sync).
-          </div>
+          <div className="mt-1 text-xs">After creating your plan, TrailPulse shows readiness (checklist + weather freshness + calendar sync).</div>
         </div>
       </section>
     </div>
