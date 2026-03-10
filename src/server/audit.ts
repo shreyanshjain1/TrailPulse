@@ -1,62 +1,28 @@
-// src/server/audit.ts
 import { prisma } from "@/src/server/prisma";
+import type { AuditAction } from "@prisma/client";
 
-export type AuditAction =
-  | "SIGN_IN"
-  | "SIGN_OUT"
-  | "SAVE_TRAIL"
-  | "UNSAVE_TRAIL"
-  | "PLAN_CREATE"
-  | "PLAN_DELETE"
-  | "CALENDAR_CREATE"
-  | "CALENDAR_DELETE"
-  | "JOB_RUN"
-  | "AUTHZ_DENIED"
-  | "RATE_LIMITED";
-
-type AuditInput = {
-  userId?: string | null;
-  userEmail?: string | null;
-  action: AuditAction;
+export async function audit(opts: {
+  userId: string;
+  action: AuditAction | string;
   target?: string | null;
-  meta?: unknown;
+  meta?: any;
   ip?: string | null;
   ua?: string | null;
-};
-
-export async function audit(input: AuditInput) {
-  const { userId, userEmail, action, target, meta, ip, ua } = input;
-
-  // Resolve a real DB userId (avoid FK violations during first-time auth race)
-  let resolvedUserId: string | null = null;
-
-  if (userId) {
-    const exists = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true },
+}) {
+  try {
+    // AuditAction is an enum in Prisma; but during development you might pass custom strings.
+    // Cast safely.
+    await prisma.auditLog.create({
+      data: {
+        userId: opts.userId,
+        action: opts.action as any,
+        target: opts.target ?? null,
+        meta: opts.meta ?? null,
+        ip: opts.ip ?? null,
+        ua: opts.ua ?? null,
+      },
     });
-    if (exists) resolvedUserId = exists.id;
+  } catch {
+    // Never crash main request due to audit logging
   }
-
-  if (!resolvedUserId && userEmail) {
-    const u = await prisma.user.findUnique({
-      where: { email: userEmail },
-      select: { id: true },
-    });
-    if (u) resolvedUserId = u.id;
-  }
-
-  // If we still can't resolve a real userId, skip logging instead of crashing auth.
-  if (!resolvedUserId) return;
-
-  await prisma.auditLog.create({
-    data: {
-      userId: resolvedUserId,
-      action,
-      target: target ?? null,
-      meta: meta as any,
-      ip: ip ?? null,
-      ua: ua ?? null,
-    },
-  });
 }

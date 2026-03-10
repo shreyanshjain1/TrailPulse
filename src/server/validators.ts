@@ -21,11 +21,7 @@ export const unsaveTrailSchema = z.object({
 export const createPlanSchema = z.object({
   trailId: z.string().min(1),
   startAt: z.string().datetime(),
-  durationMin: z.coerce
-    .number()
-    .int()
-    .min(30)
-    .max(24 * 60),
+  durationMin: z.coerce.number().int().min(30).max(24 * 60),
   notes: z.string().max(5000).optional().or(z.literal("")),
   checklist: z
     .array(
@@ -39,6 +35,9 @@ export const createPlanSchema = z.object({
     .optional()
     .default([]),
 });
+
+// ✅ Back-compat alias (your API route imports this name)
+export const planCreateSchema = createPlanSchema;
 
 export const createCalendarEventSchema = z.object({
   planId: z.string().min(1),

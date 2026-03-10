@@ -1,44 +1,35 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
 
-export default function SigninPage() {
-  const sp = useSearchParams();
-  const err = sp.get("error");
-
-  const errorText = useMemo(() => {
-    if (!err) return null;
-    if (err === "EMAIL_NOT_VERIFIED") return "Please verify your email first. Check your inbox.";
-    if (err === "CredentialsSignin") return "Invalid email or password.";
-    return "Sign in failed.";
-  }, [err]);
-
+export default function SignupPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
-  async function signinCredentials() {
+  async function submit() {
+    setMsg(null);
     setLoading(true);
     try {
-      const res = await signIn("credentials", {
-        email,
-        password: pw,
-        callbackUrl: "/dashboard",
-        redirect: false,
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password: pw }),
       });
 
-      if (res?.error) {
-        // If we threw "EMAIL_NOT_VERIFIED", NextAuth returns it as error string
-        const e = res.error;
-        const url = `/signin?error=${encodeURIComponent(e)}`;
-        window.location.href = url;
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) {
+        setMsg(json?.error ?? "Signup failed");
         return;
       }
 
-      if (res?.url) window.location.href = res.url;
+      setMsg("Signup successful. Check your email to verify, then sign in.");
+    } catch {
+      setMsg("Network error");
     } finally {
       setLoading(false);
     }
@@ -47,8 +38,8 @@ export default function SigninPage() {
   return (
     <main className="mx-auto w-full max-w-md px-4 py-16">
       <div className="rounded-2xl border bg-card p-6">
-        <h1 className="text-xl font-semibold">Sign in</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Use Google or email/password.</p>
+        <h1 className="text-xl font-semibold">Create account</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Sign up with email (verification required) or Google.</p>
 
         <div className="mt-5 grid gap-3">
           <button
@@ -61,6 +52,11 @@ export default function SigninPage() {
           <div className="my-2 text-center text-xs text-muted-foreground">or</div>
 
           <div className="grid gap-2">
+            <label className="text-sm font-medium">Name</label>
+            <input className="rounded-xl border bg-background px-3 py-2 text-sm" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+
+          <div className="grid gap-2">
             <label className="text-sm font-medium">Email</label>
             <input className="rounded-xl border bg-background px-3 py-2 text-sm" value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
           </div>
@@ -68,22 +64,23 @@ export default function SigninPage() {
           <div className="grid gap-2">
             <label className="text-sm font-medium">Password</label>
             <input className="rounded-xl border bg-background px-3 py-2 text-sm" value={pw} onChange={(e) => setPw(e.target.value)} type="password" />
+            <div className="text-xs text-muted-foreground">Min 8 characters.</div>
           </div>
 
-          {errorText ? <div className="rounded-xl border bg-rose-50 p-3 text-sm text-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{errorText}</div> : null}
+          {msg ? <div className="rounded-xl border bg-muted/20 p-3 text-sm text-muted-foreground">{msg}</div> : null}
 
           <button
             className="w-full rounded-xl bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90 disabled:opacity-50"
-            onClick={signinCredentials}
+            onClick={submit}
             disabled={loading}
           >
-            {loading ? "Signing in…" : "Sign in with email"}
+            {loading ? "Creating…" : "Create account"}
           </button>
 
           <div className="text-center text-sm text-muted-foreground">
-            No account?{" "}
-            <Link className="underline" href="/signup">
-              Create one
+            Already have an account?{" "}
+            <Link className="underline" href="/signin">
+              Sign in
             </Link>
           </div>
         </div>

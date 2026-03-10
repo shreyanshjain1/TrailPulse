@@ -1,5 +1,5 @@
 import { prisma } from "@/src/server/prisma";
-import { createPlanSchema } from "@/src/server/validators";
+import { planCreateSchema } from "@/src/server/validators";
 import { jsonError, jsonOk, getIpUa } from "@/src/server/http";
 import { requireUserOrThrow } from "@/src/server/authz";
 import { rateLimit } from "@/src/server/rateLimit";
@@ -20,11 +20,10 @@ export async function POST(req: Request) {
       ip,
       ua,
     });
-
     if (!rl.ok) return jsonError("Too many requests", 429, { retryAfterSec: rl.retryAfterSec });
 
     const body = await req.json();
-    const parsed = createPlanSchema.safeParse(body);
+    const parsed = planCreateSchema.safeParse(body);
     if (!parsed.success) return jsonError("Invalid input", 400, parsed.error.flatten());
 
     const trail = await prisma.trail.findUnique({
@@ -36,21 +35,20 @@ export async function POST(req: Request) {
     const startAt = new Date(parsed.data.startAt);
     if (isNaN(startAt.getTime())) return jsonError("Invalid date/time", 400);
 
-    const checklistItems = (parsed.data.checklist ?? []).map((item, i) => ({
-      text: item.text,
-      sortOrder: item.sortOrder ?? i,
-      isDone: item.isDone ?? false,
-    }));
-
     const plan = await prisma.hikePlan.create({
       data: {
         userId: user.id,
         trailId: trail.id,
         startAt,
         durationMin: parsed.data.durationMin,
-        notes: parsed.data.notes ? parsed.data.notes : null,
+        notes: parsed.data.notes ?? null,
         checklist: {
-          create: checklistItems,
+          // ✅ checklist is objects, not strings
+          create: (parsed.data.checklist ?? []).map((item, i) => ({
+            text: item.text,
+            sortOrder: item.sortOrder ?? i,
+            isDone: item.isDone ?? false,
+          })),
         },
       },
       include: { trail: true },
@@ -65,7 +63,6 @@ export async function POST(req: Request) {
       ua,
     });
 
-    // Fire-and-forget: refresh conditions for this trail
     weatherSyncQueue.add("weatherSync", { trigger: "planCreate", trailId: trail.id }).catch(() => {});
 
     return jsonOk({ planId: plan.id });

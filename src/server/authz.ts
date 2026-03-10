@@ -1,66 +1,55 @@
 import { auth } from "@/src/auth";
 import { prisma } from "@/src/server/prisma";
-import { audit } from "@/src/server/audit";
 
-export async function requireUser() {
+export type AuthedUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: "USER" | "ADMIN";
+};
+
+function parseAdminEmails() {
+  const raw = process.env.ADMIN_EMAILS || "";
+  return raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export async function requireUser(): Promise<AuthedUser | null> {
   const session = await auth();
-  if (!session?.user?.id) return null;
-  return session.user;
-}
 
-export async function requireUserOrThrow(ctx: { ip?: string | null; ua?: string | null }) {
-  const user = await requireUser();
-  if (!user) {
-    await audit({
-      userId: null,
-      action: "AUTHZ_DENIED",
-      target: "anonymous",
-      meta: { reason: "not_authenticated" },
-      ip: ctx.ip ?? null,
-      ua: ctx.ua ?? null,
+  const userId = (session?.user as any)?.id as string | undefined;
+  const email = session?.user?.email ? String(session.user.email).toLowerCase() : "";
+
+  if (!userId || !email) return null;
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, name: true, role: true },
+  });
+
+  if (!dbUser) return null;
+
+  const admins = parseAdminEmails();
+  if (admins.includes(dbUser.email.toLowerCase()) && dbUser.role !== "ADMIN") {
+    const updated = await prisma.user.update({
+      where: { id: dbUser.id },
+      data: { role: "ADMIN" },
+      select: { id: true, email: true, name: true, role: true },
     });
-    throw new Error("UNAUTHORIZED");
+    return { id: updated.id, email: updated.email, name: updated.name, role: updated.role };
   }
-  return user;
+
+  return { id: dbUser.id, email: dbUser.email, name: dbUser.name, role: dbUser.role };
 }
 
-export async function requireAdminOrThrow(ctx: { ip?: string | null; ua?: string | null }) {
-  const user = await requireUserOrThrow(ctx);
-  if (user.role !== "ADMIN") {
-    await audit({
-      userId: user.id,
-      action: "AUTHZ_DENIED",
-      target: "admin_only",
-      meta: { reason: "not_admin" },
-      ip: ctx.ip ?? null,
-      ua: ctx.ua ?? null,
-    });
-    throw new Error("FORBIDDEN");
-  }
-  return user;
+export async function requireUserOrThrow(): Promise<AuthedUser> {
+  const u = await requireUser();
+  if (!u) throw new Error("UNAUTHORIZED");
+  return u;
 }
 
-// Object-level checks
-export async function ensureOwnsPlan(userId: string, planId: string) {
-  const plan = await prisma.hikePlan.findFirst({
-    where: { id: planId, userId },
-    select: { id: true },
-  });
-  return !!plan;
-}
-
-export async function ensureOwnsSavedTrail(userId: string, trailId: string) {
-  const st = await prisma.savedTrail.findFirst({
-    where: { userId, trailId },
-    select: { id: true },
-  });
-  return !!st;
-}
-
-export async function ensureOwnsNotification(userId: string, notificationId: string) {
-  const n = await prisma.notification.findFirst({
-    where: { id: notificationId, userId },
-    select: { id: true },
-  });
-  return !!n;
+export function assertOwnerOrThrow(ownerId: string, currentUserId: string) {
+  if (ownerId !== currentUserId) throw new Error("FORBIDDEN");
 }

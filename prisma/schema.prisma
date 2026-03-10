@@ -25,6 +25,8 @@ enum AuditAction {
   UNSAVE_TRAIL
   PLAN_CREATE
   PLAN_DELETE
+  PLAN_SHARE_CREATE
+  PLAN_SHARE_REVOKE
   CALENDAR_CREATE
   CALENDAR_DELETE
   JOB_RUN
@@ -41,6 +43,9 @@ model User {
   role          UserRole  @default(USER)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  // Email/password login (optional if user signed up via Google)
+  passwordHash  String?   @db.Text
 
   // Optional home/start location (for nearby trails)
   homeLabel     String?
@@ -150,6 +155,11 @@ model HikePlan {
   notes        String?  @db.Text
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  // Public share link (read-only)
+  shareEnabled   Boolean   @default(false)
+  shareToken     String?   @unique
+  shareExpiresAt DateTime?
 
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   trail        Trail    @relation(fields: [trailId], references: [id], onDelete: Cascade)

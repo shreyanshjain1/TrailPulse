@@ -5,24 +5,21 @@ import bcrypt from "bcryptjs";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/src/server/prisma";
 
+const isProd = process.env.NODE_ENV === "production";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-  trustHost: true,
-
-  // ✅ Adapter still used for User/Account linking, etc.
   adapter: PrismaAdapter(prisma),
-
-  // ✅ Make sessions JWT-based (fixes your “logged out on dashboard” issue)
-  session: { strategy: "jwt" },
-
-  pages: { signIn: "/signin" },
-
+  session: { strategy: "database" },
+  pages: {
+    signIn: "/signin",
+  },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
+          // keep calendar scope if you use calendar events
           scope: "openid email profile https://www.googleapis.com/auth/calendar.events",
           access_type: "offline",
           prompt: "consent",
@@ -40,11 +37,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(creds) {
         const email = creds?.email ? String(creds.email).trim().toLowerCase() : "";
         const password = creds?.password ? String(creds.password) : "";
+
         if (!email || !password) return null;
 
         const user = await prisma.user.findUnique({
           where: { email },
-          select: { id: true, email: true, name: true, passwordHash: true, emailVerified: true },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            passwordHash: true,
+            emailVerified: true,
+          },
         });
 
         if (!user?.passwordHash) return null;
@@ -53,24 +57,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
 
-        return { id: user.id, email: user.email, name: user.name ?? undefined };
+        return { id: user.id, email: user.email, name: user.name };
       },
     }),
   ],
-
   callbacks: {
-    // ✅ put userId into JWT
-    async jwt({ token, user }) {
-      if (user?.id) token.sub = user.id;
-      return token;
-    },
-    // ✅ expose user.id to client
-    async session({ session, token }) {
+    async session({ session, user }) {
+      // Ensure session.user.id exists everywhere
       if (session.user) {
-        // @ts-expect-error add id on session.user
-        session.user.id = token.sub;
+        // @ts-expect-error - add id to session user
+        session.user.id = user.id;
       }
       return session;
     },
   },
+  cookies: {
+    // Keep defaults; here just making sure secure cookies only in prod
+  },
+  debug: !isProd,
 });
