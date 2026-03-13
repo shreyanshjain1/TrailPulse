@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/src/server/prisma";
+import PublicCopyButtons from "./public-copy-buttons";
 
 function minsAgo(d: Date) {
   const ms = Date.now() - d.getTime();
@@ -50,12 +51,13 @@ export default async function PublicPlanPage({ params }: { params: { token: stri
   const progress = pct(done, total);
 
   const w = latestWeather ? pickWeather(latestWeather.payload) : { temp: null, wind: null, rain: null };
-  const startStr = new Date(plan.startAt).toLocaleString();
-  const expStr = plan.shareExpiresAt ? plan.shareExpiresAt.toLocaleString() : "Never";
+
+  // Prefer APP_URL in production; fall back to relative path for local
+  const baseUrl = process.env.APP_URL || "";
+  const shareUrl = baseUrl ? `${baseUrl}/p/${token}` : `/p/${token}`;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-10">
-      {/* Top bar */}
       <div className="flex items-end justify-between gap-3">
         <div>
           <div className="text-xs text-muted-foreground">Shared Plan (Read-only)</div>
@@ -64,7 +66,7 @@ export default async function PublicPlanPage({ params }: { params: { token: stri
             {plan.trail.region} • {plan.trail.difficulty} • {plan.trail.distanceKm} km • {plan.trail.elevationGainM} m gain
           </div>
           <div className="mt-2 text-sm text-muted-foreground">
-            Start: {startStr} • Duration: {plan.durationMin} min
+            Start: {new Date(plan.startAt).toLocaleString()} • Duration: {plan.durationMin} min
           </div>
         </div>
 
@@ -76,15 +78,12 @@ export default async function PublicPlanPage({ params }: { params: { token: stri
         </Link>
       </div>
 
-      {/* Hero */}
       <div className="mt-8 grid gap-4 lg:grid-cols-12">
         <section className="rounded-2xl border bg-card p-5 lg:col-span-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="text-sm font-semibold">Plan Overview</div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                This is a public share link. No login required.
-              </div>
+              <div className="mt-1 text-sm text-muted-foreground">Anyone with this link can view this plan.</div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -94,21 +93,9 @@ export default async function PublicPlanPage({ params }: { params: { token: stri
               >
                 Open Trail →
               </Link>
-
-              {/* Copy Share Link (client-safe inline) */}
-              <button
-                className="inline-flex items-center justify-center rounded-xl border bg-background px-4 py-2 text-sm font-medium hover:bg-muted/50"
-                onClick={async () => {
-                  "use client";
-                }}
-              >
-                {/* This button is visually here; actual copy buttons below in client widget */}
-                Copy tools below ↓
-              </button>
             </div>
           </div>
 
-          {/* Checklist progress */}
           <div className="mt-6 rounded-2xl border bg-muted/20 p-4">
             <div className="flex items-center justify-between gap-2">
               <div className="text-sm font-semibold">Checklist Progress</div>
@@ -137,18 +124,16 @@ export default async function PublicPlanPage({ params }: { params: { token: stri
             </div>
           </div>
 
-          {/* Notes */}
           <div className="mt-6 rounded-2xl border bg-muted/20 p-4">
             <div className="text-sm font-semibold">Notes</div>
-            <div className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
-              {plan.notes ? plan.notes : "No notes added."}
-            </div>
+            <div className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{plan.notes ? plan.notes : "No notes added."}</div>
           </div>
 
-          <div className="mt-6 text-xs text-muted-foreground">Share link expires: {expStr}</div>
+          <div className="mt-6 text-xs text-muted-foreground">
+            Share link expires: {plan.shareExpiresAt ? plan.shareExpiresAt.toLocaleString() : "Never"}
+          </div>
         </section>
 
-        {/* Right column */}
         <aside className="rounded-2xl border bg-card p-5 lg:col-span-4">
           <div className="text-sm font-semibold">Weather Snapshot</div>
           <div className="mt-1 text-xs text-muted-foreground">
@@ -172,12 +157,8 @@ export default async function PublicPlanPage({ params }: { params: { token: stri
 
           <div className="mt-6 rounded-2xl border bg-muted/20 p-4">
             <div className="text-sm font-semibold">Share Tools</div>
-            <div className="mt-2 text-sm text-muted-foreground">
-              Copy the public link or a neat plan summary to share with friends.
-            </div>
-
-            {/* Client buttons */}
-            <div className="mt-4 grid gap-2">
+            <div className="mt-2 text-sm text-muted-foreground">Copy the public link or a clean summary.</div>
+            <div className="mt-4">
               <PublicCopyButtons
                 trailName={plan.trail.name}
                 startAt={plan.startAt.toISOString()}
@@ -191,7 +172,7 @@ export default async function PublicPlanPage({ params }: { params: { token: stri
                       } • Rain ${w.rain != null ? `${Math.round(w.rain)}%` : "-"}`
                     : "Weather • No snapshot"
                 }
-                shareUrl={`${process.env.APP_URL || "http://localhost:3000"}/p/${token}`}
+                shareUrl={shareUrl}
               />
             </div>
           </div>
@@ -199,23 +180,4 @@ export default async function PublicPlanPage({ params }: { params: { token: stri
       </div>
     </main>
   );
-}
-
-/**
- * Client component embedded in the public page for copy-to-clipboard actions.
- * Keeping UI premium while page stays read-only / no auth required.
- */
-function PublicCopyButtons(props: {
-  trailName: string;
-  startAt: string;
-  durationMin: number;
-  checklistDone: number;
-  checklistTotal: number;
-  weatherLine: string;
-  shareUrl: string;
-}) {
-  // Next.js Server Component file: define client component inline via "use client" boundary
-  // eslint-disable-next-line @next/next/no-async-client-component
-  const Client = require("./public-copy-buttons").default;
-  return <Client {...props} />;
 }

@@ -3,17 +3,17 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/src/server/prisma";
 import { requireUser } from "@/src/server/authz";
 import { PlanReadiness } from "@/src/components/plan-readiness";
-import { PlanSharePanel } from "@/src/components/plan-share-panel";
 
 function googleCalendarEventUrl(eventId: string) {
   return `https://calendar.google.com/calendar/u/0/r/eventedit/${encodeURIComponent(eventId)}`;
 }
 
-export default async function PlanDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PlanDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUser();
   if (!user) redirect("/signin");
 
-  const { id } = await params;
+  const id = params?.id ? String(params.id) : "";
+  if (!id) redirect("/plans");
 
   const plan = await prisma.hikePlan.findUnique({
     where: { id },
@@ -33,7 +33,9 @@ export default async function PlanDetailPage({ params }: { params: Promise<{ id:
     select: { fetchedAt: true, payload: true },
   });
 
-  const calendarEventUrl = plan.calendarLink?.eventId ? googleCalendarEventUrl(plan.calendarLink.eventId) : null;
+  const calendarEventId = plan.calendarLink?.eventId ?? null;
+  const calendarEventUrl = calendarEventId ? googleCalendarEventUrl(calendarEventId) : null;
+
   const routeSections = ((plan.trail as any).routeSections as any[] | null | undefined) ?? [];
 
   return (
@@ -60,10 +62,11 @@ export default async function PlanDetailPage({ params }: { params: Promise<{ id:
       <div className="mt-8">
         <PlanReadiness
           planId={plan.id}
+          trailId={plan.trailId}
           trailName={plan.trail.name}
-          startAtIso={plan.startAt.toISOString()}
+          startAt={plan.startAt.toISOString()}
           durationMin={plan.durationMin}
-          calendarEventUrl={calendarEventUrl}
+          calendarSynced={Boolean(plan.calendarLink)}
           checklist={plan.checklist.map((c) => ({ id: c.id, text: c.text, isDone: c.isDone }))}
           weatherFetchedAt={latestWeather?.fetchedAt?.toISOString() ?? null}
           weatherPayload={(latestWeather?.payload as any) ?? null}
@@ -71,14 +74,17 @@ export default async function PlanDetailPage({ params }: { params: Promise<{ id:
         />
       </div>
 
-      <div className="mt-8">
-        <PlanSharePanel
-          planId={plan.id}
-          initialShareEnabled={plan.shareEnabled}
-          initialShareToken={plan.shareToken ?? null}
-          initialShareExpiresAt={plan.shareExpiresAt ? plan.shareExpiresAt.toISOString() : null}
-        />
-      </div>
+      {calendarEventUrl ? (
+        <div className="mt-8 rounded-2xl border bg-card p-5">
+          <div className="text-sm font-semibold">Calendar</div>
+          <div className="mt-2 text-sm text-muted-foreground">
+            This plan is linked to Google Calendar.{" "}
+            <a className="underline" href={calendarEventUrl} target="_blank" rel="noreferrer">
+              Open event →
+            </a>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-10 rounded-2xl border bg-card p-5">
         <div className="text-sm font-semibold">Notes</div>

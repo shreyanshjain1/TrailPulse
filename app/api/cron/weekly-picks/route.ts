@@ -7,8 +7,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
-  // Simple “real world” recommender:
-  // - For each user, pick trails from regions they’ve saved most (fallback: global top)
   const users = await prisma.user.findMany({ select: { id: true } });
 
   const trails = await prisma.trail.findMany({
@@ -32,19 +30,12 @@ export async function GET(req: Request) {
     }
 
     const topRegion = Object.entries(regionCount).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-
     const picks = topRegion ? trails.filter((t) => t.region === topRegion).slice(0, 3) : trails.slice(0, 3);
 
-    const body = picks
-      .map((t, i) => `${i + 1}. ${t.name} (${t.region}) • ${t.difficulty} • ${t.distanceKm} km`)
-      .join("\n");
+    const body = picks.map((t, i) => `${i + 1}. ${t.name} (${t.region}) • ${t.difficulty} • ${t.distanceKm} km`).join("\n");
 
     await prisma.notification.create({
-      data: {
-        userId: u.id,
-        title: "Weekly picks for you",
-        body,
-      },
+      data: { userId: u.id, title: "Weekly picks for you", body },
     });
 
     created++;
