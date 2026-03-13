@@ -3,17 +3,17 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/src/server/prisma";
 import { requireUser } from "@/src/server/authz";
 import { PlanReadiness } from "@/src/components/plan-readiness";
+import { PlanSharePanel } from "@/src/components/plan-share-panel";
 
 function googleCalendarEventUrl(eventId: string) {
   return `https://calendar.google.com/calendar/u/0/r/eventedit/${encodeURIComponent(eventId)}`;
 }
 
-export default async function PlanDetailPage({ params }: { params: { id: string } }) {
+export default async function PlanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   if (!user) redirect("/signin");
 
-  const id = params?.id ? String(params.id) : "";
-  if (!id) redirect("/plans");
+  const { id } = await params;
 
   const plan = await prisma.hikePlan.findUnique({
     where: { id },
@@ -33,9 +33,7 @@ export default async function PlanDetailPage({ params }: { params: { id: string 
     select: { fetchedAt: true, payload: true },
   });
 
-  const calendarEventId = plan.calendarLink?.eventId ?? null;
-  const calendarEventUrl = calendarEventId ? googleCalendarEventUrl(calendarEventId) : null;
-
+  const calendarEventUrl = plan.calendarLink?.eventId ? googleCalendarEventUrl(plan.calendarLink.eventId) : null;
   const routeSections = ((plan.trail as any).routeSections as any[] | null | undefined) ?? [];
 
   return (
@@ -45,22 +43,15 @@ export default async function PlanDetailPage({ params }: { params: { id: string 
           <div className="text-xs text-muted-foreground">Plan</div>
           <h1 className="mt-1 text-2xl font-semibold">{plan.trail.name}</h1>
           <div className="mt-2 text-sm text-muted-foreground">
-            {new Date(plan.startAt).toLocaleString()} • {plan.durationMin} min • {plan.trail.distanceKm} km •{" "}
-            {plan.trail.elevationGainM} m gain
+            {new Date(plan.startAt).toLocaleString()} • {plan.durationMin} min • {plan.trail.distanceKm} km • {plan.trail.elevationGainM} m gain
           </div>
         </div>
 
         <div className="flex gap-2">
-          <Link
-            href="/plans"
-            className="inline-flex items-center justify-center rounded-xl border bg-background px-4 py-2 text-sm font-medium hover:bg-muted/50"
-          >
+          <Link className="inline-flex items-center justify-center rounded-xl border bg-background px-4 py-2 text-sm font-medium hover:bg-muted/50" href="/plans">
             Back to Plans
           </Link>
-          <Link
-            href={`/trails/${plan.trailId}`}
-            className="inline-flex items-center justify-center rounded-xl border bg-background px-4 py-2 text-sm font-medium hover:bg-muted/50"
-          >
+          <Link className="inline-flex items-center justify-center rounded-xl border bg-background px-4 py-2 text-sm font-medium hover:bg-muted/50" href={`/trails/${plan.trailId}`}>
             View trail
           </Link>
         </div>
@@ -80,11 +71,18 @@ export default async function PlanDetailPage({ params }: { params: { id: string 
         />
       </div>
 
+      <div className="mt-8">
+        <PlanSharePanel
+          planId={plan.id}
+          initialShareEnabled={plan.shareEnabled}
+          initialShareToken={plan.shareToken ?? null}
+          initialShareExpiresAt={plan.shareExpiresAt ? plan.shareExpiresAt.toISOString() : null}
+        />
+      </div>
+
       <div className="mt-10 rounded-2xl border bg-card p-5">
         <div className="text-sm font-semibold">Notes</div>
-        <div className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
-          {plan.notes ? plan.notes : "No notes added."}
-        </div>
+        <div className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{plan.notes ? plan.notes : "No notes added."}</div>
       </div>
     </main>
   );
