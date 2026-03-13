@@ -1,93 +1,28 @@
-"use client";
+import { auth } from "@/src/auth";
+import { redirect } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card";
+import SignInForm from "@/src/components/signin-form";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
-import { signIn } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
-
-export default function SigninPage() {
-  const sp = useSearchParams();
-  const err = sp.get("error");
-
-  const errorText = useMemo(() => {
-    if (!err) return null;
-    if (err === "EMAIL_NOT_VERIFIED") return "Please verify your email first. Check your inbox.";
-    if (err === "CredentialsSignin") return "Invalid email or password.";
-    return "Sign in failed.";
-  }, [err]);
-
-  const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function signinCredentials() {
-    setLoading(true);
-    try {
-      const res = await signIn("credentials", {
-        email,
-        password: pw,
-        callbackUrl: "/dashboard",
-        redirect: false,
-      });
-
-      if (res?.error) {
-        // If we threw "EMAIL_NOT_VERIFIED", NextAuth returns it as error string
-        const e = res.error;
-        const url = `/signin?error=${encodeURIComponent(e)}`;
-        window.location.href = url;
-        return;
-      }
-
-      if (res?.url) window.location.href = res.url;
-    } finally {
-      setLoading(false);
-    }
-  }
+export default async function SignInPage() {
+  const session = await auth();
+  if (session?.user) redirect("/dashboard");
 
   return (
-    <main className="mx-auto w-full max-w-md px-4 py-16">
-      <div className="rounded-2xl border bg-card p-6">
-        <h1 className="text-xl font-semibold">Sign in</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Use Google or email/password.</p>
-
-        <div className="mt-5 grid gap-3">
-          <button
-            className="w-full rounded-xl border bg-background px-4 py-2 text-sm font-medium hover:bg-muted/50"
-            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-          >
-            Continue with Google
-          </button>
-
-          <div className="my-2 text-center text-xs text-muted-foreground">or</div>
-
-          <div className="grid gap-2">
-            <label className="text-sm font-medium">Email</label>
-            <input className="rounded-xl border bg-background px-3 py-2 text-sm" value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
-          </div>
-
-          <div className="grid gap-2">
-            <label className="text-sm font-medium">Password</label>
-            <input className="rounded-xl border bg-background px-3 py-2 text-sm" value={pw} onChange={(e) => setPw(e.target.value)} type="password" />
-          </div>
-
-          {errorText ? <div className="rounded-xl border bg-rose-50 p-3 text-sm text-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{errorText}</div> : null}
-
-          <button
-            className="w-full rounded-xl bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90 disabled:opacity-50"
-            onClick={signinCredentials}
-            disabled={loading}
-          >
-            {loading ? "Signing in…" : "Sign in with email"}
-          </button>
-
-          <div className="text-center text-sm text-muted-foreground">
-            No account?{" "}
-            <Link className="underline" href="/signup">
-              Create one
-            </Link>
-          </div>
-        </div>
-      </div>
-    </main>
+    <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-12">
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Welcome to TrailPulse</CardTitle>
+          <CardDescription>
+            Sign in with Google or email/password. Email/password accounts require verification.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SignInForm />
+          <p className="mt-4 text-xs text-muted-foreground">
+            Google sign-in allows TrailPulse to create calendar events only when you click “Add to Google Calendar”.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
