@@ -44,7 +44,7 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  // Email/password login (optional if user signed up via Google)
+  // Credentials login (optional if user signed in with Google)
   passwordHash  String?   @db.Text
 
   // Optional home/start location (for nearby trails)
@@ -52,7 +52,6 @@ model User {
   homeLat       Float?
   homeLng       Float?
 
-  // Relations
   accounts      Account[]
   sessions      Session[]
   savedTrails   SavedTrail[]
@@ -115,9 +114,8 @@ model Trail {
   shortDescription String
   imageUrl         String?
   coverImageUrl    String?
-  photoCategory    String?   // Wikimedia Commons category name (e.g., "Mount_Pulag")
+  photoCategory    String?
 
-  // NEW: route line + labeled sections
   routeGeoJson     Json?
   routeSections    Json?
 
@@ -226,7 +224,6 @@ model AuditLog {
   ua        String?
   createdAt DateTime    @default(now())
 
-  // If you want to allow system logs with no user, change userId to String? and relation optional.
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
@@ -241,11 +238,8 @@ model JobRun {
   status     String
   attempts   Int
   error      String?  @db.Text
-
-  // Added because your worker writes startedAt and likely completedAt
   startedAt  DateTime?
   finishedAt DateTime?
-
   createdAt  DateTime @default(now())
 
   @@index([queue, createdAt])
@@ -266,5 +260,5 @@ model Review {
 
   @@index([trailId])
   @@index([userId])
-  @@unique([trailId, userId]) // optional: one review per user per trail
+  @@unique([trailId, userId])
 }
