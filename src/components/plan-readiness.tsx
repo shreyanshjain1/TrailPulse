@@ -146,12 +146,10 @@ function cn(...arr: (string | false | undefined)[]) {
 }
 
 async function copyToClipboard(text: string) {
-  // modern
   try {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    // fallback
     try {
       const ta = document.createElement("textarea");
       ta.value = text;
@@ -195,6 +193,11 @@ export function PlanReadiness({
 }) {
   const [items, setItems] = useState(checklist);
   const [packingMode, setPackingMode] = useState(false);
+
+  // ✅ Share Link state
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareExpiresAt, setShareExpiresAt] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
 
   const done = useMemo(() => items.filter((i) => i.isDone).length, [items]);
   const total = items.length;
@@ -293,9 +296,54 @@ export function PlanReadiness({
     }
   }
 
+  async function ensureShareLink(expiresInDays: 1 | 7 | 30 = 7) {
+    if (shareUrl) return shareUrl;
+
+    setShareLoading(true);
+    try {
+      const res = await fetch("/api/plans/share/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId, expiresInDays }),
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) {
+        toast.error(json?.error ?? "Failed to create share link");
+        return null;
+      }
+
+      const url = `${window.location.origin}/p/${json.token}`;
+      setShareUrl(url);
+      setShareExpiresAt(json.expiresAt ?? null);
+      return url;
+    } catch {
+      toast.error("Network error");
+      return null;
+    } finally {
+      setShareLoading(false);
+    }
+  }
+
+  async function copyPublicLink() {
+    const url = await ensureShareLink(7);
+    if (!url) return;
+
+    const ok = await copyToClipboard(url);
+    if (ok) toast.success("Public link copied");
+    else toast.error("Copy failed");
+  }
+
+  async function openPublicLink() {
+    const url = shareUrl ?? (await ensureShareLink(7));
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   async function copyPlanSummary() {
     const start = new Date(startAt);
     const link = typeof window !== "undefined" ? window.location.href : "";
+
     const weatherLine =
       w.temp != null || w.wind != null || w.rain != null
         ? `Weather: ${w.status} • Temp ${w.temp != null ? `${Number(w.temp).toFixed(1)}°C` : "-"} • Wind ${
@@ -305,6 +353,8 @@ export function PlanReadiness({
 
     const snapshotLine = weatherFetchedAt ? `Snapshot: ${minutesAgo(weatherFetchedAt)} min ago` : "Snapshot: No data yet";
 
+    const publicLine = shareUrl ? `Public link: ${shareUrl}` : "";
+
     const text = [
       `TrailPulse Plan`,
       `Trail: ${trailName}`,
@@ -313,6 +363,7 @@ export function PlanReadiness({
       `Checklist: ${done}/${total} done`,
       weatherLine,
       snapshotLine,
+      publicLine,
       link ? `Link: ${link}` : "",
     ]
       .filter(Boolean)
@@ -357,7 +408,12 @@ export function PlanReadiness({
               )}
             >
               <div className="flex items-center gap-3">
-                <span className={cn("grid h-7 w-7 place-items-center rounded-full border", it.isDone && "bg-emerald-600 text-white border-emerald-600")}>
+                <span
+                  className={cn(
+                    "grid h-7 w-7 place-items-center rounded-full border",
+                    it.isDone && "bg-emerald-600 text-white border-emerald-600",
+                  )}
+                >
                   ✓
                 </span>
                 <div className="font-medium">{it.text}</div>
@@ -467,6 +523,7 @@ export function PlanReadiness({
           </div>
         </div>
 
+        {/* ✅ Actions */}
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={markAllDone} disabled={total === 0}>
             Mark all done
@@ -474,9 +531,20 @@ export function PlanReadiness({
           <Button variant="outline" onClick={() => setPackingMode(true)} disabled={total === 0}>
             Packing mode
           </Button>
+
           <Button variant="outline" onClick={copyPlanSummary}>
             Copy plan summary
           </Button>
+
+          {/* ✅ Share link buttons (flagship) */}
+          <Button variant="outline" onClick={copyPublicLink} disabled={shareLoading}>
+            {shareLoading ? "Generating…" : shareUrl ? "Copy public link" : "Create + copy public link"}
+          </Button>
+
+          <Button variant="outline" onClick={openPublicLink} disabled={shareLoading || !shareUrl}>
+            Open public link
+          </Button>
+
           {!calendarSynced ? (
             <Button onClick={syncCalendar}>Add to Google Calendar</Button>
           ) : (
@@ -485,6 +553,16 @@ export function PlanReadiness({
             </Button>
           )}
         </div>
+
+        {shareUrl ? (
+          <div className="mt-4 rounded-2xl border bg-muted/20 p-4">
+            <div className="text-xs text-muted-foreground">Public link</div>
+            <div className="mt-1 break-all text-sm font-medium">{shareUrl}</div>
+            <div className="mt-2 text-xs text-muted-foreground">
+              Expires: {shareExpiresAt ? new Date(shareExpiresAt).toLocaleString() : "Unknown"}
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-5 rounded-2xl border bg-muted/20 p-4">
           <div className="text-sm font-semibold">What to improve</div>
@@ -519,7 +597,12 @@ export function PlanReadiness({
                   it.isDone ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-background hover:bg-muted/40",
                 )}
               >
-                <span className={cn("mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border", it.isDone && "bg-emerald-600 text-white border-emerald-600")}>
+                <span
+                  className={cn(
+                    "mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border",
+                    it.isDone && "bg-emerald-600 text-white border-emerald-600",
+                  )}
+                >
                   ✓
                 </span>
                 <div className="text-sm">
